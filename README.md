@@ -1,11 +1,13 @@
 # ComposeEx
 ### Custom Object 구성 및 테스트
-##### - 기본 Component 디자인 구성 변경
-##### - Canvas, Path, Animation   
+
+- 기본 Component 디자인 구성 변경
+- Canvas, Path, Animation   
+
 
 1. CircleCheckBox
 
-![1 circle checkbox](https://github.com/user-attachments/assets/44d164e2-a7b7-497a-bb3d-4dd22dfefa36)
+![1 circle checkbox](https://github.com/user-attachments/assets/44d164e2-a7b7-497a-bb3d-4dd22dfefa36){: width="50%" height="50%"}
 
 ```kotlin
 fun CircleCheckBox(
@@ -19,9 +21,10 @@ fun CircleCheckBox(
 ```
 
 
-3. Custom Stroke RadioButton 
 
-![2 custom stroke radio btn](https://github.com/user-attachments/assets/f704eaca-b86a-46aa-8cb7-58ab29275525)
+2. Custom Stroke RadioButton 
+
+![2 custom stroke radio btn](https://github.com/user-attachments/assets/f704eaca-b86a-46aa-8cb7-58ab29275525){: width="50%" height="50%"}
 
 ```kotlin
 fun RadioButton2(
@@ -34,9 +37,11 @@ fun RadioButton2(
 ) { ... }
 ```
 
+
+
 3. InnerThumbSwitch(checked = checkState,
 
-![3 inner thumb toggle](https://github.com/user-attachments/assets/50e6679f-8250-47fd-bfb2-44274f118152)
+![3 inner thumb toggle](https://github.com/user-attachments/assets/50e6679f-8250-47fd-bfb2-44274f118152){: width="50%" height="50%"}
 
 ```kotlin
 fun InnerThumbSwitch(
@@ -49,9 +54,11 @@ fun InnerThumbSwitch(
 ) { ... }
 ```
 
+
+
 4. MoonToSunSwitcher
 
-![4moontosun](https://github.com/user-attachments/assets/db38d46b-c8e8-4dcc-991a-cf82039e6520)
+![4moontosun](https://github.com/user-attachments/assets/db38d46b-c8e8-4dcc-991a-cf82039e6520){: width="50%" height="50%"}
 
 ```kotlin
 fun MoonToSunSwitcher(
@@ -64,9 +71,11 @@ fun MoonToSunSwitcher(
 ) { ... }
 ```
 
+
+
 5. RotatePan
 
-![5 fan](https://github.com/user-attachments/assets/bf5e3b59-e485-472b-8f46-d9762fc1696a)
+![5 fan](https://github.com/user-attachments/assets/bf5e3b59-e485-472b-8f46-d9762fc1696a){: width="50%" height="50%"}
 
 ```kotlin
 fun RotatePan(
