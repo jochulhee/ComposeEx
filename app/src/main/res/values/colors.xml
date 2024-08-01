@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- White -->
+    <color name="wt_100">#FFFFFF</color>
+
+    <!-- Dimmed color -->
+    <color name="bk_100">#99000000</color>
+
+    <!-- Cool grey -->
+    <color name="cg_100">#1E2331</color>
+    <color name="cg_90">#343B4D</color>
+    <color name="cg_80">#4E5669</color>
+    <color name="cg_70">#6C7486</color>
+    <color name="cg_60">#878E9F</color>
+    <color name="cg_50">#A6ACBA</color>
+    <color name="cg_40">#C4C8D3</color>
+    <color name="cg_30">#D8DBE3</color>
+    <color name="cg_20">#E9EBF0</color>
+    <color name="cg_10">#F9F9FC</color>
+
+    <!-- Primary blue -->
+    <color name="bl_200">#001039</color>
+    <color name="bl_180">#00154B</color>
+    <color name="bl_160">#011B5D</color>
+    <color name="bl_140">#F9F9FC</color>
+    <color name="bl_120">#012A91</color>
+    <color name="bl_100">#0A35A0</color>
+    <color name="bl_90">#1E46AC</color>
+    <color name="bl_80">#3459B7</color>
+    <color name="bl_70">#4E70C7</color>
+    <color name="bl_60">#6A88D6</color>
+    <color name="bl_50">#85A0E5</color>
+    <color name="bl_40">#A6BDF7</color>
+    <color name="bl_30">#C9D8FF</color>
+    <color name="bl_20">#E2EAFF</color>
+    <color name="bl_10">#F5F8FF</color>
+
+    <!-- Secondary Red -->
+    <color name="rd_200">#4D0018</color>
+    <color name="rd_180">#720024</color>
+    <color name="rd_160">#96002F</color>
+    <color name="rd_140">#B1093D</color>
+    <color name="rd_120">#C9164D</color>
+    <color name="rd_100">#DD265F</color>
+    <color name="rd_90">#ED3B72</color>
+    <color name="rd_80">#FC4F84</color>
+    <color name="rd_70">#FF6997</color>
+    <color name="rd_60">#FF83A9</color>
+    <color name="rd_50">#FFA0BD</color>
+    <color name="rd_40">#FFBACF</color>
+    <color name="rd_30">#FFD1DE</color>
+    <color name="rd_20">#FFE6EE</color>
+    <color name="rd_10">#FFF7F9</color>
+
+    <!-- Point yellow -->
+    <color name="or_100">#FF9C00</color>
+    <color name="or_90">#FFA71C</color>
+    <color name="or_80">#FFB136</color>
+    <color name="or_70">#FFBB50</color>
+    <color name="or_60">#FFC56A</color>
+    <color name="or_50">#FFCF83</color>
+    <color name="or_40">#FFDA9F</color>
+    <color name="or_30">#FFE5BC</color>
+    <color name="or_20">#FFEFD6</color>
+    <color name="or_10">#FFF9F0</color>
+
+</resources>
