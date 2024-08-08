@@ -93,5 +93,27 @@ fun RotatePan(
     modifier: Modifier = Modifier
 ) { ... }
 ```
+</br>
+</br>
+</br>
 
+6. Gauge
+
+<img src="https://github.com/user-attachments/assets/8d84e710-d8a7-4f42-854f-bd9cf57a8e09" width="320" height="330">
+<img src="https://github.com/user-attachments/assets/452eedcd-f31b-4b77-bcbc-ba4bd4ca78e5" width="320" height="330">
+
+```kotlin
+fun Gauge(
+    pinColor: Color,
+    modifier: Modifier = Modifier,
+    markColor: Color,
+    markLevel: MarkLevel = MarkLevel.Mid,
+    backColor: Color,
+    minDegree: Float = 0f,
+    maxDegree: Float = 100f,
+    degree: Float = 50f,
+    fontSize: TextUnit,
+    fontColor: Color
+) { ... }
+```
 
