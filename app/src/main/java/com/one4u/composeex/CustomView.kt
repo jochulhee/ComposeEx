@@ -3,7 +3,6 @@ package com.one4u.composeex
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateDpAsState
@@ -27,7 +26,6 @@ import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -67,7 +65,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -85,13 +82,19 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -403,7 +406,6 @@ private fun DrawScope.drawCheck(
         checkPath.moveTo(width * leftX, width * gravitatedLeftY)
         checkPath.lineTo(width * gravitatedCrossX, width * gravitatedCrossY)
         checkPath.lineTo(width * rightX, width * gravitatedRightY)
-        // TODO: replace with proper declarative non-android alternative when ready (b/158188351)
         pathMeasure.setPath(checkPath, false)
         pathToDraw.reset()
         pathMeasure.getSegment(
@@ -933,9 +935,9 @@ private fun DrawScope.drawPin(
 }
 @Composable
 private fun RotatePan(
+    modifier: Modifier = Modifier,
     fanColor: Color,
-    pinColor: Color,
-    modifier: Modifier = Modifier
+    pinColor: Color
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val degree by infiniteTransition.animateFloat(
@@ -946,7 +948,9 @@ private fun RotatePan(
             repeatMode = RepeatMode.Reverse
         )
     )
-    Canvas(modifier = modifier.size(48.dp).aspectRatio(1f)) {
+    Canvas(modifier = modifier
+        .size(48.dp)
+        .aspectRatio(1f)) {
         val width = size.width
         val pinRadius = width * 0.15f
         val fanLength = width * 0.35f
@@ -963,6 +967,212 @@ private fun RotatePan(
     }
 }
 
+/**
+ * Degree gauge
+ * */
+enum class MarkLevel { // mark 세분화 정도
+    Low,
+    Mid,
+    High
+}
+private fun DrawScope.drawGaugeBack(
+    markColor: Color,
+    markLevel: MarkLevel = MarkLevel.Mid,
+    radius: Float,
+    minDegree: Float = 0f,
+    maxDegree: Float = 100f
+) {
+    var rayCount = ((maxDegree - minDegree) / 10).toInt()
+
+    // draw low
+    for (i in 0 until rayCount) {
+        val angle = (2 * Math.PI * i / rayCount).toFloat()
+
+        val startX = center.x + radius * cos(angle)
+        val startY = center.y + radius * sin(angle)
+
+        val endX = center.x + (radius + radius * 0.22f) * cos(angle)
+        val endY = center.y + (radius + radius * 0.22f) * sin(angle)
+
+        drawLine(
+            color = markColor,
+            alpha = 1f,
+            start = Offset(startX, startY),
+            end = Offset(endX, endY),
+            cap = StrokeCap.Round,
+            strokeWidth = 3f
+        )
+    }
+
+    if (markLevel == MarkLevel.Low) return
+    rayCount*=2
+
+    // draw mid
+    for (i in 0 until rayCount) {
+        val angle = (2 * Math.PI * i / (rayCount)).toFloat()
+
+        val startX = center.x + radius * cos(angle)
+        val startY = center.y + radius * sin(angle)
+
+        val endX = center.x + (radius + radius * 0.11f) * cos(angle)
+        val endY = center.y + (radius + radius * 0.11f) * sin(angle)
+
+        drawLine(
+            color = markColor,
+            alpha = 1f,
+            start = Offset(startX, startY),
+            end = Offset(endX, endY),
+            cap = StrokeCap.Round,
+            strokeWidth = 2f
+        )
+    }
+
+    if (markLevel == MarkLevel.Mid) return
+    rayCount*=5
+
+    // draw high
+    for (i in 0 until rayCount) {
+        val angle = (2 * Math.PI * i / (rayCount)).toFloat()
+
+        val startX = center.x + radius * cos(angle)
+        val startY = center.y + radius * sin(angle)
+
+        val endX = center.x + (radius + radius * 0.05f) * cos(angle)
+        val endY = center.y + (radius + radius * 0.05f) * sin(angle)
+
+        drawLine(
+            color = markColor,
+            alpha = 1f,
+            start = Offset(startX, startY),
+            end = Offset(endX, endY),
+            cap = StrokeCap.Round,
+            strokeWidth = 1f
+        )
+    }
+}
+
+private fun DrawScope.drawLevelPin(
+    pinColor: Color,
+    radius: Float
+) {
+    val angle = (1/2f * Math.PI).toFloat()
+    // gauge pin
+    val pinPath = Path().apply {
+        val startX = center.x + 2f * sin(angle)
+        val startY = center.y - 2f * cos(angle)
+
+        val secondX = center.x + (radius) * cos(angle)
+        val secondY = center.y + (radius) * sin(angle)
+
+        val endX = center.x - 2f * sin(angle)
+        val endY = center.y + 2f * cos(angle)
+
+        moveTo(startX, startY)
+        lineTo(secondX, secondY)
+        lineTo(endX, endY)
+
+    }
+
+    drawPath(pinPath, pinColor, 1f)
+
+    // center pin
+    drawCircle(
+        color = pinColor,
+        radius = 3f
+    )
+    drawCircle(
+        color = Color.White,
+        radius = 2f
+    )
+}
+
+private fun DrawScope.drawLabel(
+    textMeasurer: TextMeasurer,
+    labelColor: Color,
+    labelSize: TextUnit,
+    radius: Float,
+    minDegree: Float = 0f,
+    maxDegree: Float = 100f
+) {
+    // label 표기는 Mid level 핀에만 작성
+    val labelCount = ((maxDegree - minDegree) / 10).toInt()
+
+    for (i in 0 until labelCount) {
+        val angle = (Math.PI * (4f * i + labelCount) / (2f * labelCount)).toFloat() // 3시 방향 0 degree 시작 -> rotate 90f(= + PI/2 )
+
+        val offsetX = center.x + (radius + radius * 0.38f) * cos(angle) - 12f
+        val offsetY = center.y + (radius + radius * 0.38f) * sin(angle) - 12f
+
+        val minText = String.format("%02d", i + minDegree.toInt())
+        drawText(
+            textMeasurer = textMeasurer,
+            text = if (i == 0) minText else "${i * 10 + minDegree.toInt()}",
+            topLeft = Offset(
+                x = offsetX,
+                y = offsetY
+            ),
+            style = TextStyle(fontSize = labelSize, fontWeight = FontWeight.Light, color = labelColor)
+        )
+    }
+}
+
+@Composable
+private fun Gauge(
+    pinColor: Color,
+    modifier: Modifier = Modifier,
+    markColor: Color,
+    markLevel: MarkLevel = MarkLevel.Mid,
+    backColor: Color,
+    minDegree: Float = 0f,
+    maxDegree: Float = 100f,
+    degree: Float = 50f,
+    fontSize: TextUnit,
+    fontColor: Color
+) {
+    val textMeasurer = rememberTextMeasurer()
+    Canvas(modifier = modifier
+        .size(140.dp)
+        .aspectRatio(1f)
+        .background(color = backColor)) {
+        val radius = size.width / 3.2f
+        rotate(90f) {
+            drawGaugeBack(
+                markColor = markColor,
+                markLevel = markLevel,
+                radius = radius,
+                minDegree = minDegree,
+                maxDegree = maxDegree,
+            )
+        }
+
+        val d = (degree + minDegree) / (maxDegree - minDegree) * 360f
+        rotate(d) {
+            drawLevelPin(
+                pinColor = pinColor,
+                radius = radius)
+        }
+
+        drawLabel(
+            textMeasurer = textMeasurer,
+            labelColor = fontColor,
+            labelSize = fontSize,
+            radius = radius,
+            minDegree = minDegree,
+            maxDegree = maxDegree
+        )
+
+        if (degree >= maxDegree)
+            drawText(
+                textMeasurer = textMeasurer,
+                text = "⟳x${(degree/maxDegree).toInt()}",
+                topLeft = Offset(
+                    x = size.width/2 - radius/5,
+                    y = size.height/2 + radius/2
+                ),
+                style = TextStyle(fontSize = fontSize, fontWeight = FontWeight.Light, color = fontColor)
+            )
+    }
+}
 
 @Preview
 @Composable
@@ -1036,4 +1246,17 @@ private fun uiPreview() {
 //        fanColor = Color(0XFF000000),
 //        pinColor = Color(0XFF000000)
 //    )
+
+    // 6.
+    Gauge(
+        pinColor = Color(0xFF333333),
+        markColor = Color(0xFF000000),
+        backColor = Color(0xFFFFFFFF),
+        markLevel = MarkLevel.High,
+        minDegree = 0f,
+        maxDegree = 120f,
+        degree = 1880f,
+        fontSize = 8.sp,
+        fontColor = Color(0xFF333333),
+        modifier = Modifier)
 }
