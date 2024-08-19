@@ -65,6 +65,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -96,6 +97,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import java.util.Locale
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.cos
@@ -1174,6 +1176,120 @@ private fun Gauge(
     }
 }
 
+/**
+ * Ring Progress
+ *
+ * */
+private fun DrawScope.drawRingProgress(
+    barWidth: Float,
+    barColor: Color,
+    progressColor: Color,
+    radius: Float,
+    degree: Float = 50f,
+    maxDegree: Float = 100f
+) {
+    // draw arc, rounded cap
+    val angle = degree / maxDegree * 360f
+    val innerR = radius * (1 - barWidth / 2f)
+    val path = Path().apply {
+        addArc(oval = Rect(center, innerR), startAngleDegrees = 0f, sweepAngleDegrees = angle)
+    }
+    drawPath(
+        path = path,
+        color = progressColor,
+        style = Stroke(
+            width = radius * barWidth,
+            cap = StrokeCap.Round
+        )
+    )
+
+    // draw circle & arc, flat ring progress
+//    val backCircle = Path().apply {
+//        addOval(oval = Rect(center, radius))
+//    }
+//    drawPath(backCircle, barColor)
+//
+//    when {
+//        degree == 0f -> {
+//            // do nothing
+//        }
+//        degree % maxDegree == 0f -> {
+//            val mainCircle = Path().apply {
+//                addOval(oval = Rect(center, radius))
+//            }
+//            drawPath(mainCircle, progressColor)
+//        }
+//        else -> {
+//            val angle = degree / maxDegree * 360f
+//            val mainCircle = Path().apply {
+//                moveTo(center.x, center.y)
+//                arcTo(rect = Rect(center, radius), startAngleDegrees = 0f, sweepAngleDegrees = angle, forceMoveTo = false)
+//            }
+//            drawPath(mainCircle, progressColor)
+//        }
+//    }
+//
+//    val subtractCircle = Path().apply {
+//        addOval(Rect(center, radius * (1f - barWidth)))
+//    }
+//    drawPath(subtractCircle, Color.White)
+}
+
+
+
+@Composable
+private fun RingProgress(
+    modifier: Modifier = Modifier,
+    barWidth: Float = 0.1f, // 0% ~ 100%
+    barColor: Color,
+    progressColor: Color,
+    degree: Float = 50f,
+    maxDegree: Float = 100f,
+    fontSize: TextUnit,
+    fontColor: Color,
+    animationSpecProgress: AnimationSpec<Float> = tween(1500, easing = FastOutSlowInEasing),
+) {
+    val textMeasurer = rememberTextMeasurer()
+    var animate by remember{ mutableStateOf(false) }
+    val progress by animateFloatAsState(
+        targetValue = if (animate) degree else 0f,
+        animationSpec = animationSpecProgress,
+        label = "Theme switcher progress"
+    )
+    LaunchedEffect(key1 = Unit) {
+//        delay(2.seconds)
+        animate = true
+    }
+    Canvas(
+        modifier = modifier.aspectRatio(1f).background(color = Color.White)
+    ) {
+        val radius = size.width / 2.1f
+        val text = String.format(Locale.KOREA, "%2.1f", progress/maxDegree*100f)
+
+        rotate(270f) {
+            drawRingProgress(
+                barWidth = barWidth,
+                barColor = barColor,
+                progressColor = progressColor,
+                radius = radius,
+                degree = progress,
+                maxDegree = maxDegree
+            )
+        }
+
+        drawText(
+            textMeasurer = textMeasurer,
+            text = "$text\u0025" ,
+            topLeft = Offset(
+                x = size.width / 2 - ((text.length + 2) * fontSize.value)/2f,
+                y = size.height / 2 - fontSize.value
+            ),
+            style = TextStyle(fontSize = fontSize, fontWeight = FontWeight.Medium, color = fontColor)
+        )
+    }
+
+}
+
 @Preview
 @Composable
 private fun uiPreview() {
@@ -1248,15 +1364,27 @@ private fun uiPreview() {
 //    )
 
     // 6.
-    Gauge(
-        pinColor = Color(0xFF333333),
-        markColor = Color(0xFF000000),
-        backColor = Color(0xFFFFFFFF),
-        markLevel = MarkLevel.High,
-        minDegree = 0f,
+//    Gauge(
+//        pinColor = Color(0xFF333333),
+//        markColor = Color(0xFF000000),
+//        backColor = Color(0xFFFFFFFF),
+//        markLevel = MarkLevel.High,
+//        minDegree = 0f,
+//        maxDegree = 120f,
+//        degree = 1880f,
+//        fontSize = 8.sp,
+//        fontColor = Color(0xFF333333),
+//        modifier = Modifier)
+
+    // 7.
+    RingProgress(
+        modifier = Modifier.size(100.dp),
+        barWidth = 0.3f,
+        barColor = Color(0xFF333333),
+        progressColor = Color(0xFF000000),
+        degree = 12f,
         maxDegree = 120f,
-        degree = 1880f,
-        fontSize = 8.sp,
-        fontColor = Color(0xFF333333),
-        modifier = Modifier)
+        fontSize = 9.sp,
+        fontColor = Color(0xFF000000)
+    )
 }
