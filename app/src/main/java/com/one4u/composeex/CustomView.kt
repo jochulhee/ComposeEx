@@ -1,5 +1,11 @@
 package com.one4u.composeex
 
+import android.graphics.BlurMaskFilter
+import android.graphics.BlurMaskFilter.Blur
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.drawable.GradientDrawable
+import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -15,28 +21,39 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Indication
+import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CheckboxColors
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.ExperimentalMaterialApi
@@ -50,6 +67,7 @@ import androidx.compose.material.SwipeableDefaults
 import androidx.compose.material.SwipeableState
 import androidx.compose.material.SwitchColors
 import androidx.compose.material.SwitchDefaults
+import androidx.compose.material.Text
 import androidx.compose.material.TriStateCheckbox
 import androidx.compose.material.minimumInteractiveComponentSize
 import androidx.compose.material.ripple.rememberRipple
@@ -69,18 +87,36 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.toRect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.RadialGradientShader
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -91,11 +127,11 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import java.util.Locale
 import kotlin.math.floor
@@ -1261,7 +1297,9 @@ private fun RingProgress(
         animate = true
     }
     Canvas(
-        modifier = modifier.aspectRatio(1f).background(color = Color.White)
+        modifier = modifier
+            .aspectRatio(1f)
+            .background(color = Color.White)
     ) {
         val radius = size.width / 2.1f
         val text = String.format(Locale.KOREA, "%2.1f", progress/maxDegree*100f)
@@ -1288,6 +1326,193 @@ private fun RingProgress(
         )
     }
 
+}
+
+
+/**
+ * Convex Style Border, Modifier
+ * - https://medium.com/@kappdev/how-to-create-a-stunning-3d-border-in-jetpack-compose-e040fbb6b8de
+ * */
+data class ConvexStyle(
+    val blur: Dp = 3.dp,
+    val offset: Dp = 2.dp,
+    val glareColor: Color = Color.White.copy(0.64f),
+    val shadowColor: Color = Color.Black.copy(0.64f)
+)
+
+private fun DrawScope.drawConvexBorderShadow(
+    outline: Outline,
+    strokeWidth: Dp,
+    blur: Dp,
+    offsetX: Dp,
+    offsetY: Dp,
+    shadowColor: Color
+) = drawIntoCanvas { canvas ->
+    val shadowPaint = Paint().apply {
+        this.style = PaintingStyle.Stroke
+        this.color = shadowColor
+        this.strokeWidth = strokeWidth.toPx()
+    }
+
+    canvas.saveLayer(size.toRect(), shadowPaint)
+
+    val halfStrokeWidth = strokeWidth.toPx() / 2
+    canvas.translate(halfStrokeWidth, halfStrokeWidth)
+    canvas.drawOutline(outline, shadowPaint)
+
+    // Apply blending mode and blur effect for the shadow
+    shadowPaint.asFrameworkPaint().apply {
+        xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
+        maskFilter = BlurMaskFilter(blur.toPx(), BlurMaskFilter.Blur.NORMAL)
+    }
+    shadowPaint.color = Color.Black
+
+    canvas.translate(offsetX.toPx(), offsetY.toPx())
+    canvas.drawOutline(outline = outline, shadowPaint)
+    canvas.restore()
+}
+
+fun Modifier.convexBorder(
+    color: Color,
+    shape: Shape,
+    strokeWidth:Dp = 8.dp,
+    convexStyle: ConvexStyle = ConvexStyle()
+) = this.drawWithContent {
+    val adjustedSize = Size(size.width - strokeWidth.toPx(), size.height - strokeWidth.toPx())
+    val outline = shape.createOutline(adjustedSize, layoutDirection, this)
+    drawContent()
+
+    val halfStrokeWidth = strokeWidth.toPx() / 2
+    translate(halfStrokeWidth, halfStrokeWidth) {
+        drawOutline(
+            outline = outline,
+            color = color,
+            style = Stroke(width = strokeWidth.toPx())
+        )
+    }
+
+    with(convexStyle) {
+        drawConvexBorderShadow(outline, strokeWidth, blur, -offset, -offset, shadowColor)
+        drawConvexBorderShadow(outline, strokeWidth, blur, offset, offset, glareColor)
+    }
+}
+
+
+/**
+ * Neu morphism style Object
+ * */
+fun Modifier.shadow(
+    color: Color = Color.Black,
+    offsetX: Dp = 0.dp,
+    offsetY: Dp = 0.dp,
+    blurRadius: Dp = 0.dp
+) = then(
+    drawBehind {
+        drawIntoCanvas { canvas ->
+            val paint = Paint()
+            val frameworkPaint = paint.asFrameworkPaint()
+            if (blurRadius != 0.dp) {
+                frameworkPaint.maskFilter = BlurMaskFilter(20f, Blur.NORMAL)
+            }
+            frameworkPaint.color = color.toArgb()
+
+
+            val leftPx = offsetX.toPx() // 2
+            val topPx = offsetY.toPx() // 2
+            val rightPx = size.width + offsetX.toPx() // 2
+            val bottomPx = size.height + offsetY.toPx() // 2
+
+            canvas.drawRoundRect(
+                left = leftPx,
+                top = topPx,
+                right = rightPx,
+                bottom = bottomPx,
+                paint = paint,
+                radiusX = blurRadius.toPx(),
+                radiusY = blurRadius.toPx()
+            )
+        }
+    }
+)
+
+@Composable
+fun NeuMorphismButton(
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp,
+    backColor: Color,
+    text: String,
+    onClick: (() -> Unit)
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val animationSpecOffset: AnimationSpec<Dp> = tween(400)
+    val animationSpecAlpha: AnimationSpec<Float> = tween(400)
+
+    val topOffset by animateDpAsState(
+        targetValue = if (!isPressed) (-4).dp else (-1).dp,
+        animationSpec = animationSpecOffset,
+        label = "top shadow offset"
+    )
+    val botOffset by animateDpAsState(
+        targetValue = if (!isPressed) 4.dp else 1.dp,
+        animationSpec = animationSpecOffset,
+        label = "bottom shadow offset"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (!isPressed) 0.8f else 0.05f,
+        animationSpec = animationSpecAlpha,
+        label = "shadow alpha"
+    )
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .shadow(
+                color = Color(0xFF666666).copy(alpha),
+                offsetX = botOffset,
+                offsetY = botOffset,
+                blurRadius = cornerRadius
+            )
+            .shadow(
+                color = Color(0xFFCCCCCC).copy(alpha),
+                offsetX = topOffset,
+                offsetY = topOffset,
+                blurRadius = cornerRadius
+            )
+            .background(
+                color = backColor,
+                shape = RoundedCornerShape(cornerRadius)
+            )
+            .clip(shape = RoundedCornerShape(cornerRadius))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+//                indication = rememberRipple(),
+//                indication = CustomIndication.apply { color = Color(0xEE556677).copy(0.1f) },
+                onClick = onClick
+            )
+    ) {
+//        Text(if (!isPressed) text else "Pressed")
+        Text(text)
+    }
+}
+object CustomIndication : Indication {
+    var color: Color = Color.Gray.copy(0.1f)
+    @Composable
+    override fun rememberUpdatedInstance(interactionSource: InteractionSource): IndicationInstance {
+        val isPressed = interactionSource.collectIsPressedAsState()
+        return remember(interactionSource) {
+            DefaultDebugIndicationInstance(isPressed)
+        }
+    }
+    private class DefaultDebugIndicationInstance(private val isPressed: State<Boolean>): IndicationInstance {
+        override fun ContentDrawScope.drawIndication() {
+            drawContent()
+            if (isPressed.value) {
+                drawRect(color = color, size = size)
+            }
+        }
+    }
 }
 
 @Preview
@@ -1377,14 +1602,182 @@ private fun uiPreview() {
 //        modifier = Modifier)
 
     // 7.
-    RingProgress(
-        modifier = Modifier.size(100.dp),
-        barWidth = 0.3f,
-        barColor = Color(0xFF333333),
-        progressColor = Color(0xFF000000),
-        degree = 12f,
-        maxDegree = 120f,
-        fontSize = 9.sp,
-        fontColor = Color(0xFF000000)
-    )
+//    RingProgress(
+//        modifier = Modifier.size(100.dp),
+//        barWidth = 0.3f,
+//        barColor = Color(0xFF333333),
+//        progressColor = Color(0xFF000000),
+//        degree = 12f,
+//        maxDegree = 120f,
+//        fontSize = 9.sp,
+//        fontColor = Color(0xFF000000)
+//    )
+
+    // 8. Modifier - convexBorder
+//    var text by remember { mutableStateOf("") }
+//    BasicTextField(
+//        value = text,
+//        onValueChange = {
+//            text = it
+//        },
+//        singleLine = true,
+//        keyboardOptions = KeyboardOptions(
+//            capitalization = KeyboardCapitalization.Sentences,
+//            imeAction = ImeAction.Search
+//        ),
+//        textStyle = LocalTextStyle.current.copy(
+//            fontSize = 16.sp,
+//            fontWeight = FontWeight.Medium
+//        ),
+//        decorationBox = { innerTextField ->
+//            Row(
+//                modifier = Modifier
+//                    .size(300.dp, 60.dp)
+//                    .background(Color(0XFFAAAAAA), CircleShape)
+//                    .convexBorder(
+//                        color = Color(0XFFCCCCDD),
+//                        shape = CircleShape,
+//                        convexStyle = ConvexStyle(
+////                            shadowColor = Color(0xFFDD0000).copy(0.7f)
+//                        )
+//                    )
+//                    .padding(horizontal = 20.dp),
+//                verticalAlignment = Alignment.CenterVertically,
+//                horizontalArrangement = Arrangement.spacedBy(8.dp)
+//            ) {
+//                Icon(
+//                    imageVector = Icons.Rounded.Search,
+//                    contentDescription = null
+//                )
+//                Box {
+//                    if (text.isEmpty()) {
+//                        Text(
+//                            text = "Search...",
+//                            style = LocalTextStyle.current.copy(Color(0xFF242424))
+//                        )
+//                    }
+//                    innerTextField()
+//                }
+//            }
+//        }
+//    )
+
+    // 9.
+    Column(
+        modifier = Modifier
+            .size(280.dp, 400.dp)
+            .background(Color(0xFFAAAAAA))
+            .padding(40.dp)
+    ) {
+        Row {
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 10.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(25.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 10.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(25.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 10.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        NeuMorphismButton(
+            modifier = Modifier
+                .size(200.dp, 70.dp),
+            cornerRadius = 20.dp,
+            backColor = Color(0xFFAAAAAA),
+            text= "Button1"
+        ) {
+
+        }
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Row {
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(90.dp, 45.dp),
+                cornerRadius = 1.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Button2"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(20.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(90.dp, 45.dp),
+                cornerRadius = 1.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Button3"
+            ) {
+
+            }
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Row {
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 25.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(25.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 25.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(25.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 25.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+        }
+    }
 }
