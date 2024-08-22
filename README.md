@@ -18,7 +18,7 @@ fun CircleCheckBox(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     colors: CheckboxColors = CheckboxDefaults2.colors()
-) { ... }
+) { .... }
 ```
 </br> 
 </br> 
@@ -37,7 +37,7 @@ fun RadioButton2(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     colors: RadioButtonColors = RadioButtonDefaults.colors()
-) { ... }
+) { .... }
 ```
 </br>
 </br>
@@ -56,7 +56,7 @@ fun InnerThumbSwitch(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     colors: SwitchColors = SwitchDefaults.colors(),
-) { ... }
+) { .... }
 ```
 </br>
 </br>
@@ -75,7 +75,7 @@ fun MoonToSunSwitcher(
     modifier: Modifier = Modifier,
     animationSpecProgress: AnimationSpec<Float> = tween(1000),
     animationSpecColor: AnimationSpec<Color> = tween(1000)
-) { ... }
+) { .... }
 ```
 </br>
 </br>
@@ -91,7 +91,7 @@ fun RotatePan(
     fanColor: Color,
     pinColor: Color,
     modifier: Modifier = Modifier
-) { ... }
+) { .... }
 ```
 </br>
 </br>
@@ -114,6 +114,86 @@ fun Gauge(
     degree: Float = 50f,
     fontSize: TextUnit,
     fontColor: Color
+) { .... }
+```
+</br>
+</br>
+</br>
+
+7. RingProgress
+
+<!-- ![7 RingProgress](https://github.com/user-attachments/assets/065ccd9e-6034-4af8-b367-fc064c713709) -->
+<img src="https://github.com/user-attachments/assets/065ccd9e-6034-4af8-b367-fc064c713709" width="187" height="200">
+
+```kotlin
+fun RingProgress(
+    modifier: Modifier = Modifier,
+    barWidth: Float = 0.1f, // 0% ~ 100%
+    barColor: Color,
+    progressColor: Color,
+    degree: Float = 50f,
+    maxDegree: Float = 100f,
+    fontSize: TextUnit,
+    fontColor: Color,
+    animationSpecProgress: AnimationSpec<Float> = tween(1500, easing = FastOutSlowInEasing),
+) { .... }
+```
+</br>
+</br>
+</br>
+
+8. Convex Style Border, Modifier
+
+<img src="https://github.com/user-attachments/assets/e970e063-6ce2-422e-a187-d948015e3bd9" width="335">
+
+```kotlin
+Row(
+    modifier = Modifier
+        .size(300.dp, 60.dp)
+        .background(Color(0XFFAAAAAA), CircleShape)
+        .convexBorder(
+            color = Color(0XFFCCCCDD),
+            shape = CircleShape,
+            convexStyle = ConvexStyle()
+        )
+        .padding(horizontal = 20.dp),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(8.dp)
+) { ... }
+
+fun Modifier.convexBorder(
+    color: Color,
+    shape: Shape,
+    strokeWidth:Dp = 8.dp,
+    convexStyle: ConvexStyle = ConvexStyle() // set glare color, shadow color
 ) { ... }
 ```
+</br>
+</br>
+</br>
 
+9. Neumorphism Style Object
+
+<img src="https://github.com/user-attachments/assets/2da32896-880f-4d6c-a161-239e1161131c" width="424">
+
+```kotlin
+Column(
+    modifier = Modifier
+        .size(280.dp, 400.dp)
+        .background(Color(0xFFAAAAAA))
+        .padding(40.dp)
+) {
+    NeuMorphismButton(
+        modifier = Modifier
+            .size(50.dp, 50.dp),
+        cornerRadius = 10.dp,
+        backColor = Color(0xFFAAAAAA),
+        text= "Btn"
+    ) {
+    
+    }
+}
+```
+</br>
+</br>
+</br>
