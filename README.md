@@ -1,4 +1,4 @@
-![9 Neumorphism_Ex](https://github.com/user-attachments/assets/c479aebc-f037-4f27-8700-27f13d0878c1)# ComposeEx
+# ComposeEx
 </br> Custom Object 구성 및 테스트
 
 - 기본 Component 디자인 구성 변경
@@ -172,7 +172,7 @@ fun Modifier.convexBorder(
 </br>
 </br>
 
-9. Neumorphism Style objec
+9. Neumorphism Style Object
 
 <img src="https://github.com/user-attachments/assets/2da32896-880f-4d6c-a161-239e1161131c" width="424">
 
