@@ -1,4 +1,4 @@
-# ComposeEx
+![9 Neumorphism_Ex](https://github.com/user-attachments/assets/c479aebc-f037-4f27-8700-27f13d0878c1)# ComposeEx
 </br> Custom Object 구성 및 테스트
 
 - 기본 Component 디자인 구성 변경
@@ -137,6 +137,62 @@ fun RingProgress(
     fontColor: Color,
     animationSpecProgress: AnimationSpec<Float> = tween(1500, easing = FastOutSlowInEasing),
 ) { .... }
+```
+</br>
+</br>
+</br>
+
+8. Convex Style Border, Modifier
+
+<img src="https://github.com/user-attachments/assets/e970e063-6ce2-422e-a187-d948015e3bd9" width="335">
+
+```kotlin
+Row(
+    modifier = Modifier
+        .size(300.dp, 60.dp)
+        .background(Color(0XFFAAAAAA), CircleShape)
+        .convexBorder(
+            color = Color(0XFFCCCCDD),
+            shape = CircleShape,
+            convexStyle = ConvexStyle()
+        )
+        .padding(horizontal = 20.dp),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(8.dp)
+) { ... }
+
+fun Modifier.convexBorder(
+    color: Color,
+    shape: Shape,
+    strokeWidth:Dp = 8.dp,
+    convexStyle: ConvexStyle = ConvexStyle() // set glare color, shadow color
+) { ... }
+```
+</br>
+</br>
+</br>
+
+9. Neumorphism Style objec
+
+<img src="https://github.com/user-attachments/assets/2da32896-880f-4d6c-a161-239e1161131c" width="424">
+
+```kotlin
+Column(
+    modifier = Modifier
+        .size(280.dp, 400.dp)
+        .background(Color(0xFFAAAAAA))
+        .padding(40.dp)
+) {
+    NeuMorphismButton(
+        modifier = Modifier
+            .size(50.dp, 50.dp),
+        cornerRadius = 10.dp,
+        backColor = Color(0xFFAAAAAA),
+        text= "Btn"
+    ) {
+    
+    }
+}
 ```
 </br>
 </br>
