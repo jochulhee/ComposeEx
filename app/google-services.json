@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "416222425628",
+    "project_id": "fcmtestgb",
+    "storage_bucket": "fcmtestgb.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:416222425628:android:ef5eed02031c95e236e5d9",
+        "android_client_info": {
+          "package_name": "com.one4u.composeex"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQoX16reeEuqsWkKGzrRXeXiyqpbvTO54"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
