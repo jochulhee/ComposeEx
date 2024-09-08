@@ -166,7 +166,7 @@ fun Modifier.convexBorder(
     shape: Shape,
     strokeWidth:Dp = 8.dp,
     convexStyle: ConvexStyle = ConvexStyle() // set glare color, shadow color
-) { ... }
+) { .... }
 ```
 </br>
 </br>
@@ -194,6 +194,60 @@ Column(
     }
 }
 ```
+</br>
+</br>
+</br>
+
+10. Collapsing TopBar
+
+
+</br>
+</br>
+</br>
+
+11. Animate in Bottom TapBar
+
+<img src="https://github.com/user-attachments/assets/7f968bdb-9f04-4a86-9fda-d51559ec3845" width="424">
+
+```kotlin
+data class BottomTabBarItem(
+    val painter: Painter,
+    val title: String
+)
+
+fun BottomTabBar(
+    backColor: Color,
+    height: Dp = 80.dp,
+    cornerRadius :Dp = 10.dp,
+    menus: ArrayList<BottomTabBarItem>,
+    selectedTabListener: (idx: Int) -> Unit
+) { .... }
+```
+
+</br>
+</br>
+</br>
+
+12. Snackbar Countdown
+
+<img src="https://github.com/user-attachments/assets/ab4514d5-64b8-4086-972b-605a0bbdfaa6" width="424">
+
+```kotlin
+fun CountdownSnackbar(
+    snackbarData: SnackbarData,
+    modifier: Modifier = Modifier,
+    durationInSeconds: Int = 5,
+    actionOnNewLine: Boolean = false,
+    shape: Shape = MaterialTheme.shapes.small,
+    containerColor: Color = SnackbarDefaults.backgroundColor,
+    contentColor: Color = MaterialTheme.colors.surface,
+    actionColor: Color = SnackbarDefaults.primaryActionColor,
+//    actionContentColor: Color = SnackbarDefaults.actionContentColor,
+//    dismissActionContentColor: Color = SnackbarDefaults.dismissActionContentColor,
+) { .... }
+```
+https://medium.com/@kappdev/how-to-create-a-countdown-snackbar-in-android-with-jetpack-compose-d58bcd8011cf
+
 </br>
 </br>
 </br>
