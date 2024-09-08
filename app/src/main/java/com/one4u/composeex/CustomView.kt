@@ -4,42 +4,52 @@ import android.graphics.BlurMaskFilter
 import android.graphics.BlurMaskFilter.Blur
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
-import android.graphics.drawable.GradientDrawable
-import android.widget.Toast
+import android.os.Handler
+import android.os.Looper
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,27 +57,39 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.CheckboxColors
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.FractionalThreshold
+import androidx.compose.material.Icon
 import androidx.compose.material.LocalAbsoluteElevation
 import androidx.compose.material.LocalElevationOverlay
+import androidx.compose.material.LocalTextStyle
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.RadioButtonColors
 import androidx.compose.material.RadioButtonDefaults
+import androidx.compose.material.Snackbar
+import androidx.compose.material.SnackbarData
+import androidx.compose.material.SnackbarDefaults
+import androidx.compose.material.SnackbarDuration
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
+import androidx.compose.material.SnackbarResult
 import androidx.compose.material.SwipeableDefaults
 import androidx.compose.material.SwipeableState
 import androidx.compose.material.SwitchColors
 import androidx.compose.material.SwitchDefaults
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.TriStateCheckbox
 import androidx.compose.material.minimumInteractiveComponentSize
 import androidx.compose.material.ripple.rememberRipple
@@ -79,9 +101,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,11 +115,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.toRect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
@@ -103,7 +128,6 @@ import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.PathOperation
-import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawOutline
@@ -114,11 +138,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.TextMeasurer
@@ -132,8 +158,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.cos
@@ -1515,6 +1545,315 @@ object CustomIndication : Indication {
     }
 }
 
+/**
+ * Collapsing TopBar(NavigationBar)
+ * */
+@Composable
+private fun CollapsingTopBar(
+
+) {
+
+}
+
+
+/**
+ * Animate Bottom TabBar
+ * */
+@Composable
+private fun BottomTabBar(
+    backColor: Color,
+    height: Dp = 80.dp,
+    cornerRadius :Dp = 10.dp,
+    menus: ArrayList<BottomTabBarItem>,
+    selectedTabListener: (idx: Int) -> Unit
+) {
+    val density = LocalDensity.current
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val screenWidthPx = with(density) { screenWidth.toPx().toInt() }
+    var selectedTabIdx by remember{ mutableStateOf(1) }
+    var animateSelectedTabIdx by remember{ mutableStateOf(1) }
+
+    val animationSpec1: AnimationSpec<Float> = tween(durationMillis = 450, easing = CubicBezierEasing(0.3f, -0.05f, 0.7f, -0.5f))
+    val animationSpec3: AnimationSpec<Float> = tween(durationMillis = 50, delayMillis = 350,  easing = CubicBezierEasing(0.3f, -0.05f, 0.7f, -0.5f))
+    val animationSpec4: AnimationSpec<Float> = tween(durationMillis = 50, easing = LinearEasing)
+
+    val targetOffsetX = screenWidthPx * ((animateSelectedTabIdx * 4f) + 3) / ((menus.size * 2f + 1f) * 2f)
+    val animateTargetOffsetX by animateFloatAsState(
+        targetValue = targetOffsetX,
+        animationSpec = animationSpec3,
+        label = ""
+    )
+
+    var pressed by remember { mutableStateOf(false) }
+    var secondEffect by remember { mutableStateOf(false) }
+
+    val backCircleRadius  = height.value * 1.3f
+    val backCircleOffsetY by animateFloatAsState(
+        targetValue = if (!pressed) height.value * 0.15f else - height.value * 1.5f,
+        animationSpec = if (!pressed) animationSpec4 else animationSpec3,
+        label = ""
+    )
+
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .height(height)) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            // draw path.. and circle
+            val corner = CornerRadius(cornerRadius.toPx(), cornerRadius.toPx())
+            val roundRectPath = Path().apply {
+                addRoundRect(
+                    roundRect = RoundRect(
+                        rect = Rect(
+                            offset = Offset(0f, size.height * 0.24f),
+                            size = Size(size.width, size.height * 0.76f)
+                        ),
+                        topLeft = corner,
+                        topRight = corner,
+                        bottomLeft = corner,
+                        bottomRight = corner
+                    )
+                )
+            }
+            val subtractCircle = Path().apply {
+                addOval(oval = Rect(Offset(animateTargetOffsetX, size.height * 0.35f), backCircleRadius))
+            }
+            val background = Path().apply {
+                op(roundRectPath, subtractCircle, PathOperation.Difference)
+            }
+            drawPath(background, backColor)
+        }
+        for (idx in menus.indices) {
+            val frontCircleRadius by animateFloatAsState(
+                targetValue = if (idx == animateSelectedTabIdx) height.value * 1.0f else height.value * 0.35f,
+                animationSpec = animationSpec1,
+                label = ""
+            ) {
+                pressed = false
+                secondEffect = true
+            }
+
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val offsetX = screenWidthPx * ((idx * 4f) + 3) / ((menus.size * 2f + 1f) * 2f)
+                drawCircle(
+                    backColor,
+                    radius = frontCircleRadius,
+                    center = Offset(offsetX, height.toPx() * 0.37f)
+                )
+            }
+        }
+
+//        val colors = arrayListOf(Color(0x99FF0000), Color(0x9900FF00), Color(0x990000FF), Color(0x99333333))
+        Row(modifier = Modifier
+            .height(height = height)
+            .fillMaxSize()
+            , verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
+            for (idx in menus.indices) {
+                if (idx > 5) break
+                Column(modifier = Modifier
+//                    .background(color = colors[idx])
+                    .weight(1f)
+                    .noRippleClickable {
+                        pressed = true
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            selectedTabListener.invoke(idx)
+                            selectedTabIdx = idx
+                        }, 400)
+                        animateSelectedTabIdx = idx
+                    }
+                    , horizontalAlignment = Alignment.CenterHorizontally) {
+                    AnimatedVisibility(
+                        visible = idx == selectedTabIdx,
+                        enter = fadeIn(initialAlpha = 0.5f) + slideInVertically(initialOffsetY = { height -> (height * 0.13f).toInt() }) + scaleIn(initialScale = 0.6f),
+                        exit = fadeOut(targetAlpha = 0.5f) + slideOutVertically(targetOffsetY = { height -> (height * 0.13f).toInt() }) + scaleOut(targetScale = 0.6f)
+                    ) {
+                        Column {
+                            Icon(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.7f)
+                                    .fillMaxHeight(0.7f),
+                                painter = menus[idx].painter,
+                                contentDescription = menus[idx].title,
+                                tint = Color(0xFF3E74FF)
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+//                    AnimatedVisibility(
+//                        visible = idx != selectedTabIdx,
+//                        enter = fadeIn(),
+//                        exit = fadeOut()
+//                    ) {
+//                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+//                            Spacer(modifier = Modifier.height(20.dp))
+//                            Icon(
+//                                painter = menus[idx].painter,
+//                                contentDescription = menus[idx].title,
+//                                tint = colorResource(id = R.color.cg_70)
+//                            )
+//                            Text(
+//                                text = menus[idx].title,
+//                                color = colorResource(id = R.color.cg_70),
+//                                fontSize = 12.sp
+//                            )
+//                        }
+//                    }
+                    if (idx == selectedTabIdx) {
+//                        Icon(
+//                            modifier = Modifier
+//                                .fillMaxWidth(0.7f)
+//                                .fillMaxHeight(0.7f),
+//                            painter = menus[idx].painter,
+//                            contentDescription = menus[idx].title,
+//                            tint = Color(0xFF3E74FF)
+//                        )
+//                        Spacer(modifier = Modifier.weight(1f))
+                    } else {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Icon(
+                            painter = menus[idx].painter,
+                            contentDescription = menus[idx].title,
+                            tint = colorResource(id = R.color.cg_70)
+                        )
+                        Text(
+                            text = menus[idx].title,
+                            color = colorResource(id = R.color.cg_70),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+data class BottomTabBarItem(
+    val painter: Painter,
+    val title: String
+)
+
+
+/**
+ * CountdownSnackbar
+ * */
+@Composable
+fun CountdownSnackbar(
+    snackbarData: SnackbarData,
+    modifier: Modifier = Modifier,
+    durationInSeconds: Int = 5,
+    actionOnNewLine: Boolean = false,
+    shape: Shape = MaterialTheme.shapes.small,
+    containerColor: Color = SnackbarDefaults.backgroundColor,
+    contentColor: Color = MaterialTheme.colors.surface,
+    actionColor: Color = SnackbarDefaults.primaryActionColor,
+//    actionContentColor: Color = SnackbarDefaults.actionContentColor,
+//    dismissActionContentColor: Color = SnackbarDefaults.dismissActionContentColor,
+) {
+    var animateDone by remember { mutableStateOf(false) }
+    val totalDuration = remember(durationInSeconds) { durationInSeconds * 1000 }
+    val animateRemainTime by animateIntAsState(
+        targetValue = if (!animateDone) totalDuration else 0,
+        animationSpec = tween(durationMillis = totalDuration, easing = LinearEasing),
+        label = ""
+    ) {
+//        animateDone = false
+        snackbarData.dismiss()
+    }
+
+    // Define the action button if an action label is provided
+    val actionLabel = snackbarData.actionLabel
+    val contentMessage = snackbarData.message
+    val actionComposable: (@Composable () -> Unit)? = if (actionLabel != null) {
+        @Composable {
+            TextButton(
+                colors = ButtonDefaults.textButtonColors(contentColor = actionColor),
+                onClick = { snackbarData.performAction() },
+                content = { Text(actionLabel) }
+            )
+        }
+    } else {
+        null
+    }
+
+    // Define the dismiss button if the snackbar includes a dismiss action
+//    val dismissActionComposable: (@Composable () -> Unit)? = if (snackBarData.) {
+//        @Composable {
+//            IconButton(
+//                onClick = { snackBarData.dismiss() },
+//                content = {
+//                    Icon(Icons.Rounded.Close, null)
+//                }
+//            )
+//        }
+//    } else {
+//        null
+//    }
+
+    Snackbar(
+        modifier = modifier.padding(12.dp),
+        action = actionComposable,
+        actionOnNewLine = actionOnNewLine,
+        shape = shape,
+        backgroundColor = containerColor,
+        contentColor = contentColor,
+    ) {//content
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            SnackbarCountdown(
+                timerProgress = animateRemainTime.toFloat() / totalDuration.toFloat(),
+                secondsRemaining = ceil(animateRemainTime.toDouble() / 1000).toInt(),
+                color = contentColor
+            )
+            Text(contentMessage)
+        }
+    }
+
+    // start animating
+    LaunchedEffect(key1 = Unit) {
+        animateDone = true
+    }
+}
+@Composable
+private fun SnackbarCountdown(
+    timerProgress: Float,
+    secondsRemaining: Int,
+    color: Color
+) {
+    Box(
+        modifier = Modifier.size(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val strokeStyle = Stroke(
+                width = 3.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+            drawCircle(
+                color = color.copy(alpha = 0.12f),
+                style = strokeStyle
+            )
+            drawArc(
+                color = color,
+                startAngle = -90f,
+                sweepAngle = (-360f * timerProgress),
+                useCenter = false,
+                style = strokeStyle
+            )
+        }
+
+        Text(
+            text = secondsRemaining.toString(),
+            style = LocalTextStyle.current.copy(
+                fontSize = 14.sp,
+                color = color
+            )
+        )
+    }
+}
+
 @Preview
 @Composable
 private fun uiPreview() {
@@ -1663,121 +2002,214 @@ private fun uiPreview() {
 //    )
 
     // 9.
-    Column(
-        modifier = Modifier
-            .size(280.dp, 400.dp)
-            .background(Color(0xFFAAAAAA))
-            .padding(40.dp)
-    ) {
-        Row {
-            NeuMorphismButton(
-                modifier = Modifier
-                    .size(50.dp, 50.dp),
-                cornerRadius = 10.dp,
-                backColor = Color(0xFFAAAAAA),
-                text= "Btn"
-            ) {
+//    Column(
+//        modifier = Modifier
+//            .size(280.dp, 400.dp)
+//            .background(Color(0xFFAAAAAA))
+//            .padding(40.dp)
+//    ) {
+//        Row {
+//            NeuMorphismButton(
+//                modifier = Modifier
+//                    .size(50.dp, 50.dp),
+//                cornerRadius = 10.dp,
+//                backColor = Color(0xFFAAAAAA),
+//                text= "Btn"
+//            ) {
+//
+//            }
+//
+//            Spacer(modifier = Modifier.width(25.dp))
+//
+//            NeuMorphismButton(
+//                modifier = Modifier
+//                    .size(50.dp, 50.dp),
+//                cornerRadius = 10.dp,
+//                backColor = Color(0xFFAAAAAA),
+//                text= "Btn"
+//            ) {
+//
+//            }
+//
+//            Spacer(modifier = Modifier.width(25.dp))
+//
+//            NeuMorphismButton(
+//                modifier = Modifier
+//                    .size(50.dp, 50.dp),
+//                cornerRadius = 10.dp,
+//                backColor = Color(0xFFAAAAAA),
+//                text= "Btn"
+//            ) {
+//
+//            }
+//        }
+//
+//        Spacer(modifier = Modifier.height(30.dp))
+//
+//        NeuMorphismButton(
+//            modifier = Modifier
+//                .size(200.dp, 70.dp),
+//            cornerRadius = 20.dp,
+//            backColor = Color(0xFFAAAAAA),
+//            text= "Button1"
+//        ) {
+//
+//        }
+//        Spacer(modifier = Modifier.height(30.dp))
+//
+//        Row {
+//            NeuMorphismButton(
+//                modifier = Modifier
+//                    .size(90.dp, 45.dp),
+//                cornerRadius = 1.dp,
+//                backColor = Color(0xFFAAAAAA),
+//                text= "Button2"
+//            ) {
+//
+//            }
+//
+//            Spacer(modifier = Modifier.width(20.dp))
+//
+//            NeuMorphismButton(
+//                modifier = Modifier
+//                    .size(90.dp, 45.dp),
+//                cornerRadius = 1.dp,
+//                backColor = Color(0xFFAAAAAA),
+//                text= "Button3"
+//            ) {
+//
+//            }
+//        }
+//
+//        Spacer(modifier = Modifier.height(30.dp))
+//
+//        Row {
+//            NeuMorphismButton(
+//                modifier = Modifier
+//                    .size(50.dp, 50.dp),
+//                cornerRadius = 25.dp,
+//                backColor = Color(0xFFAAAAAA),
+//                text= "Btn"
+//            ) {
+//
+//            }
+//
+//            Spacer(modifier = Modifier.width(25.dp))
+//
+//            NeuMorphismButton(
+//                modifier = Modifier
+//                    .size(50.dp, 50.dp),
+//                cornerRadius = 25.dp,
+//                backColor = Color(0xFFAAAAAA),
+//                text= "Btn"
+//            ) {
+//
+//            }
+//
+//            Spacer(modifier = Modifier.width(25.dp))
+//
+//            NeuMorphismButton(
+//                modifier = Modifier
+//                    .size(50.dp, 50.dp),
+//                cornerRadius = 25.dp,
+//                backColor = Color(0xFFAAAAAA),
+//                text= "Btn"
+//            ) {
+//
+//            }
+//        }
+//    }
 
+    // 10. Collapsing TopBar
+    CollapsingTopBar()
+
+    // 11. Animate in Bottom TapBar
+//    Box(modifier = Modifier
+//        .fillMaxWidth()
+//        .height(200.dp), contentAlignment = Alignment.BottomCenter) {
+//        BottomTabBar(
+//            backColor = Color.White,
+//            height = 92.dp,
+//            cornerRadius = 35.dp,
+//            menus = arrayListOf(
+//                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_cam), title = "Camera"),
+//                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_home), title = "Home"),
+//                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_search), title = "Search")
+//            )
+//        ) { selectedIdx ->
+//            when (selectedIdx) {
+//                0 -> {
+//                    // camera
+//                }
+//
+//                1 -> {
+//                    // main
+//                }
+//
+//                2 -> {
+//                    // search
+//                }
+//            }
+//        }
+//    }
+
+    // 12. Snackbar Countdown
+    Box(Modifier.fillMaxSize()) {
+//        val results = remember { mutableStateListOf<String>() }
+//        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val snackbarHostState = remember { SnackbarHostState() }
+
+//        LazyColumn(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .background(color = Color.LightGray.copy(0.5f))
+//                .padding(10.dp)
+//        ) {
+//            items(results.size) {idx ->
+//                Text(results[idx])
+//            }
+//        }
+
+        Button(
+            modifier = Modifier.align(Alignment.Center),
+            onClick = {
+                // show snackbar and do something(process...)
+                scope.launch {
+                    snackbarHostState.currentSnackbarData?.performAction()
+
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Something will be done soon.",
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Indefinite// countdown
+                    )
+
+                    when(result) {
+                        SnackbarResult.Dismissed -> {
+                            // do something now.
+//                            Toast.makeText(context, "done", Toast.LENGTH_SHORT).show()
+//                            results.add("Done")
+                        }
+                        SnackbarResult.ActionPerformed -> {
+                            // canceled
+//                            Toast.makeText(context, "canceled", Toast.LENGTH_SHORT).show()
+//                            results.add("Canceled")
+                        }
+                    }
+                }
             }
-
-            Spacer(modifier = Modifier.width(25.dp))
-
-            NeuMorphismButton(
-                modifier = Modifier
-                    .size(50.dp, 50.dp),
-                cornerRadius = 10.dp,
-                backColor = Color(0xFFAAAAAA),
-                text= "Btn"
-            ) {
-
-            }
-
-            Spacer(modifier = Modifier.width(25.dp))
-
-            NeuMorphismButton(
-                modifier = Modifier
-                    .size(50.dp, 50.dp),
-                cornerRadius = 10.dp,
-                backColor = Color(0xFFAAAAAA),
-                text= "Btn"
-            ) {
-
-            }
-        }
-
-        Spacer(modifier = Modifier.height(30.dp))
-
-        NeuMorphismButton(
-            modifier = Modifier
-                .size(200.dp, 70.dp),
-            cornerRadius = 20.dp,
-            backColor = Color(0xFFAAAAAA),
-            text= "Button1"
         ) {
-
-        }
-        Spacer(modifier = Modifier.height(30.dp))
-
-        Row {
-            NeuMorphismButton(
-                modifier = Modifier
-                    .size(90.dp, 45.dp),
-                cornerRadius = 1.dp,
-                backColor = Color(0xFFAAAAAA),
-                text= "Button2"
-            ) {
-
-            }
-
-            Spacer(modifier = Modifier.width(20.dp))
-
-            NeuMorphismButton(
-                modifier = Modifier
-                    .size(90.dp, 45.dp),
-                cornerRadius = 1.dp,
-                backColor = Color(0xFFAAAAAA),
-                text= "Button3"
-            ) {
-
-            }
+            Text("Do Something")
         }
 
-        Spacer(modifier = Modifier.height(30.dp))
-
-        Row {
-            NeuMorphismButton(
-                modifier = Modifier
-                    .size(50.dp, 50.dp),
-                cornerRadius = 25.dp,
-                backColor = Color(0xFFAAAAAA),
-                text= "Btn"
-            ) {
-
-            }
-
-            Spacer(modifier = Modifier.width(25.dp))
-
-            NeuMorphismButton(
-                modifier = Modifier
-                    .size(50.dp, 50.dp),
-                cornerRadius = 25.dp,
-                backColor = Color(0xFFAAAAAA),
-                text= "Btn"
-            ) {
-
-            }
-
-            Spacer(modifier = Modifier.width(25.dp))
-
-            NeuMorphismButton(
-                modifier = Modifier
-                    .size(50.dp, 50.dp),
-                cornerRadius = 25.dp,
-                backColor = Color(0xFFAAAAAA),
-                text= "Btn"
-            ) {
-
-            }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) { data ->
+            CountdownSnackbar(
+                snackbarData = data,
+                durationInSeconds = 5
+            )
         }
     }
 }
