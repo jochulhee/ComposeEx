@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalMaterialApi::class)
+
 package com.one4u.composeex
 
+import android.annotation.SuppressLint
 import android.graphics.BlurMaskFilter
 import android.graphics.BlurMaskFilter.Blur
 import android.graphics.PorterDuff
@@ -31,8 +34,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Indication
-import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -46,6 +47,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -59,12 +61,12 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.CheckboxColors
 import androidx.compose.material.ContentAlpha
@@ -80,10 +82,6 @@ import androidx.compose.material.RadioButtonDefaults
 import androidx.compose.material.Snackbar
 import androidx.compose.material.SnackbarData
 import androidx.compose.material.SnackbarDefaults
-import androidx.compose.material.SnackbarDuration
-import androidx.compose.material.SnackbarHost
-import androidx.compose.material.SnackbarHostState
-import androidx.compose.material.SnackbarResult
 import androidx.compose.material.SwipeableDefaults
 import androidx.compose.material.SwipeableState
 import androidx.compose.material.SwitchColors
@@ -91,17 +89,28 @@ import androidx.compose.material.SwitchDefaults
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TriStateCheckbox
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.minimumInteractiveComponentSize
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material.swipeable
-import androidx.compose.runtime.State
-import androidx.compose.runtime.Stable
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -140,11 +149,13 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.TextMeasurer
@@ -160,13 +171,13 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.roundToInt
-import kotlin.math.cos
 import kotlin.math.sin
 
 /*********************************************
@@ -220,7 +231,7 @@ fun TriStateCheckbox2(
                 enabled = enabled,
                 role = Role.Checkbox,
                 interactionSource = interactionSource,
-                indication = rememberRipple(
+                indication = ripple(
                     bounded = false,
                     radius = CheckboxRippleRadius
                 )
@@ -529,7 +540,7 @@ fun RadioButton2(
                 enabled = enabled,
                 role = Role.RadioButton,
                 interactionSource = interactionSource,
-                indication = rememberRipple(
+                indication = ripple(
                     bounded = false,
                     radius = RadioButtonRippleRadius
                 )
@@ -565,6 +576,7 @@ fun RadioButton2(
 }
 // -- Radio Button
 
+@SuppressLint("ModifierFactoryUnreferencedReceiver")
 @Composable
 inline fun Modifier.noRippleClickable(crossinline onClick: ()->Unit): Modifier = composed {
     clickable(indication = null,
@@ -1007,7 +1019,7 @@ private fun RotatePan(
     fanColor: Color,
     pinColor: Color
 ) {
-    val infiniteTransition = rememberInfiniteTransition()
+    val infiniteTransition = rememberInfiniteTransition(label = "")
     val degree by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1800f,
@@ -1015,6 +1027,7 @@ private fun RotatePan(
             animation = tween(5 * 1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         )
+        , label = ""
     )
     Canvas(modifier = modifier
         .size(48.dp)
@@ -1171,7 +1184,7 @@ private fun DrawScope.drawLabel(
         val offsetX = center.x + (radius + radius * 0.38f) * cos(angle) - 12f
         val offsetY = center.y + (radius + radius * 0.38f) * sin(angle) - 12f
 
-        val minText = String.format("%02d", i + minDegree.toInt())
+        val minText = String.format(Locale.KOREA, "%02d", i + minDegree.toInt())
         drawText(
             textMeasurer = textMeasurer,
             text = if (i == 0) minText else "${i * 10 + minDegree.toInt()}",
@@ -1248,7 +1261,6 @@ private fun Gauge(
  * */
 private fun DrawScope.drawRingProgress(
     barWidth: Float,
-    barColor: Color,
     progressColor: Color,
     radius: Float,
     degree: Float = 50f,
@@ -1307,7 +1319,6 @@ private fun DrawScope.drawRingProgress(
 private fun RingProgress(
     modifier: Modifier = Modifier,
     barWidth: Float = 0.1f, // 0% ~ 100%
-    barColor: Color,
     progressColor: Color,
     degree: Float = 50f,
     maxDegree: Float = 100f,
@@ -1337,7 +1348,6 @@ private fun RingProgress(
         rotate(270f) {
             drawRingProgress(
                 barWidth = barWidth,
-                barColor = barColor,
                 progressColor = progressColor,
                 radius = radius,
                 degree = progress,
@@ -1393,7 +1403,7 @@ private fun DrawScope.drawConvexBorderShadow(
     // Apply blending mode and blur effect for the shadow
     shadowPaint.asFrameworkPaint().apply {
         xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
-        maskFilter = BlurMaskFilter(blur.toPx(), BlurMaskFilter.Blur.NORMAL)
+        maskFilter = BlurMaskFilter(blur.toPx(), Blur.NORMAL)
     }
     shadowPaint.color = Color.Black
 
@@ -1517,31 +1527,11 @@ fun NeuMorphismButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-//                indication = rememberRipple(),
-//                indication = CustomIndication.apply { color = Color(0xEE556677).copy(0.1f) },
                 onClick = onClick
             )
     ) {
 //        Text(if (!isPressed) text else "Pressed")
         Text(text)
-    }
-}
-object CustomIndication : Indication {
-    var color: Color = Color.Gray.copy(0.1f)
-    @Composable
-    override fun rememberUpdatedInstance(interactionSource: InteractionSource): IndicationInstance {
-        val isPressed = interactionSource.collectIsPressedAsState()
-        return remember(interactionSource) {
-            DefaultDebugIndicationInstance(isPressed)
-        }
-    }
-    private class DefaultDebugIndicationInstance(private val isPressed: State<Boolean>): IndicationInstance {
-        override fun ContentDrawScope.drawIndication() {
-            drawContent()
-            if (isPressed.value) {
-                drawRect(color = color, size = size)
-            }
-        }
     }
 }
 
@@ -1854,9 +1844,10 @@ private fun SnackbarCountdown(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Preview
 @Composable
-private fun uiPreview() {
+private fun UiPreview() {
     // 1.
 //    var checkState by remember{ mutableStateOf(false) }
 //    CircleCheckBox(
@@ -1909,14 +1900,15 @@ private fun uiPreview() {
 
 
     // 4.
-//    val infiniteTransition = rememberInfiniteTransition()
+//    val infiniteTransition = rememberInfiniteTransition(label = "")
 //    val isMoon by infiniteTransition.animateFloat(
 //        initialValue = 0f,
 //        targetValue = 1f,
 //        animationSpec = infiniteRepeatable(
 //            animation = tween(2000, easing = LinearEasing),
 //            repeatMode = RepeatMode.Reverse
-//        )
+//        ),
+//        label = ""
 //    )
 //    MoonToSunSwitcher(isMoon = isMoon > 0.5f, sunColor = Color(0xFFFFB136), moonColor = Color(0xFFFFED72))
 
@@ -1944,7 +1936,6 @@ private fun uiPreview() {
 //    RingProgress(
 //        modifier = Modifier.size(100.dp),
 //        barWidth = 0.3f,
-//        barColor = Color(0xFF333333),
 //        progressColor = Color(0xFF000000),
 //        degree = 12f,
 //        maxDegree = 120f,
@@ -2154,62 +2145,316 @@ private fun uiPreview() {
 //    }
 
     // 12. Snackbar Countdown
-    Box(Modifier.fillMaxSize()) {
-//        val results = remember { mutableStateListOf<String>() }
+//    Box(Modifier.fillMaxSize()) {
 //        val context = LocalContext.current
-        val scope = rememberCoroutineScope()
-        val snackbarHostState = remember { SnackbarHostState() }
-
-//        LazyColumn(
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .background(color = Color.LightGray.copy(0.5f))
-//                .padding(10.dp)
-//        ) {
-//            items(results.size) {idx ->
-//                Text(results[idx])
-//            }
-//        }
-
-        Button(
-            modifier = Modifier.align(Alignment.Center),
-            onClick = {
-                // show snackbar and do something(process...)
-                scope.launch {
-                    snackbarHostState.currentSnackbarData?.performAction()
-
-                    val result = snackbarHostState.showSnackbar(
-                        message = "Something will be done soon.",
-                        actionLabel = "Undo",
-                        duration = SnackbarDuration.Indefinite// countdown
-                    )
-
-                    when(result) {
-                        SnackbarResult.Dismissed -> {
-                            // do something now.
+//        val scope = rememberCoroutineScope()
+//        val snackbarHostState = remember { SnackbarHostState() }
+//
+//        Button(
+//            modifier = Modifier.align(Alignment.Center),
+//            onClick = {
+//                // show snackbar and do something(process...)
+//                scope.launch {
+//                    snackbarHostState.currentSnackbarData?.performAction()
+//
+//                    val result = snackbarHostState.showSnackbar(
+//                        message = "Something will be done soon.",
+//                        actionLabel = "Undo",
+//                        duration = SnackbarDuration.Indefinite// countdown
+//                    )
+//
+//                    when(result) {
+//                        SnackbarResult.Dismissed -> {
+//                            // do something now.
 //                            Toast.makeText(context, "done", Toast.LENGTH_SHORT).show()
-//                            results.add("Done")
-                        }
-                        SnackbarResult.ActionPerformed -> {
-                            // canceled
+//                        }
+//                        SnackbarResult.ActionPerformed -> {
+//                            // canceled
 //                            Toast.makeText(context, "canceled", Toast.LENGTH_SHORT).show()
-//                            results.add("Canceled")
-                        }
-                    }
-                }
-            }
-        ) {
-            Text("Do Something")
-        }
+//                        }
+//                    }
+//                }
+//            }
+//        ) {
+//            Text("Do Something")
+//        }
+//
+//        SnackbarHost(
+//            hostState = snackbarHostState,
+//            modifier = Modifier.align(Alignment.BottomCenter)
+//        ) { data ->
+//            CountdownSnackbar(
+//                snackbarData = data,
+//                durationInSeconds = 5
+//            )
+//        }
+//    }
 
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) { data ->
-            CountdownSnackbar(
-                snackbarData = data,
-                durationInSeconds = 5
-            )
+
+    // 13. responsive Dashboard layout
+//    val mode = remember {
+//        mutableStateOf("Portrait")
+//    }
+//    val scope = rememberCoroutineScope()
+//    val offsetX = remember { Animatable(300f) }
+//    val offsetY = remember { Animatable(0f) }
+//
+//    val tiles = remember {
+//        movableContentOf {//  state tracking
+//            Tile()
+//            Spacer(Modifier.size(10.dp))
+//            Tile(modifier = Modifier.offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) })
+//        }
+//    }
+//
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(color = Color.White)
+//            .padding(20.dp)
+//    ) {
+//        // View 에 Animate Offset 처리, View 상태 유지 & View 이동 시 Animation 효과 제어
+//        Box {
+//            tiles()
+//        }
+//
+//        // Grid 컬럼 제어. 각 View 가 새로 그려지는 이슈 & col size 계산 필..
+////        AnimatedContent(targetState = if (mode.value == "Landscape") 2 else 1, label = "") { colCnt ->
+////            LazyVerticalGrid(
+////                modifier = Modifier.width(208.dp / colCnt).wrapContentHeight(),
+////                columns = GridCells.Adaptive(100.dp),
+////                verticalArrangement = Arrangement.spacedBy(8.dp),
+////                horizontalArrangement = Arrangement.spacedBy(8.dp)
+////            ) {
+////                items(2) {
+////                    Tile()
+////                }
+////            }
+////        }
+//
+//        // 컨탠츠 애니메이션 처리. 각 View 가 새로 그려지는 이슈..
+////        AnimatedContent(targetState = mode.value == "Landscape", label = "") { targetState ->
+////            if (targetState) {
+////                Row {
+////                    tiles()
+////                }
+////            } else {
+////                Column {
+////                    tiles()
+////                }
+////            }
+////        }
+//
+//        // 화면 전환 시 깜빡거리는 듯 즉각 변화. View 상태 유지
+////        if (mode.value == "Landscape") {
+////            Row {
+////                tiles()
+////            }
+////        } else {
+////            Column {
+////                tiles()
+////            }
+////        }
+//
+//        Spacer(Modifier.height(20.dp))
+//        AnimatedContent(
+//            modifier = Modifier.offset { IntOffset(0, offsetY.value.roundToInt()) }
+//            ,targetState = mode.value, label = "") { targetStr ->
+//            Text(targetStr)
+//        }
+//
+//        Spacer(Modifier.height(20.dp))
+//        Button(modifier = Modifier
+//            .offset { IntOffset(0, offsetY.value.roundToInt()) }
+//            .size(100.dp, 60.dp), onClick = {
+//            scope.launch {
+//                    if (mode.value == "Portrait") {
+//                        mode.value = "Landscape"
+//                        launch{
+//                            offsetX.animateTo(0f, animationSpec = tween(400, easing = FastOutSlowInEasing))
+//                        }
+//                        launch{
+//                            offsetY.animateTo(300f, animationSpec = tween(800))
+//                        }
+//                    } else {
+//                        mode.value = "Portrait"
+//                        launch {
+//                            offsetX.animateTo(300f, animationSpec = tween(800))
+//                        }
+//                        launch {
+//                            offsetY.animateTo(0f, animationSpec = tween(400, easing = FastOutSlowInEasing))
+//                        }
+//                    }
+//                }
+//            }
+//        ) {
+//            Text("click")
+//        }
+//    }
+
+    // 14. Swipe to dismiss
+    val emailViewModel = EmailViewModel()
+    val messages by emailViewModel.messagesState.collectAsState()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize(),
+        contentPadding = PaddingValues(vertical = 12.dp),
+    ) {
+        itemsIndexed(
+            items = messages,
+            // Provide a unique key based on the email content
+            key = { _, item -> item.hashCode() }
+        ) { _, emailContent ->
+//            EmailItem(emailContent, onRemove = emailViewModel::removeItem)
+            EmailItem(emailContent) { item ->
+                emailViewModel.removeItem(item)
+            }
         }
     }
+
+}
+
+// 고유 event 를 handling 하는 View
+@Composable
+fun Tile(modifier: Modifier = Modifier) {
+    val repeatingAnimation = rememberInfiniteTransition(label = "")
+
+    val float = repeatingAnimation.animateFloat(
+        initialValue = 0f,
+        targetValue = 100f,
+        animationSpec = infiniteRepeatable(repeatMode = RepeatMode.Reverse,
+            animation = tween(5000)), label = ""
+    )
+    Box(modifier = modifier
+        .size(100.dp)
+        .background(Color.Gray, RoundedCornerShape(8.dp))){
+        Text("Tile 1 ${float.value.roundToInt()}",
+            modifier = Modifier.align(Alignment.Center))
+    }
+}
+
+// swipe item 처리를 위한 샘플 message Item
+data class EmailMessage(
+    val sender: String,
+    val message: String,
+    val time : Date
+) {
+    fun getTime() : String {
+        val dateFormat = "yyyy-mm-dd HH:mm"
+        val simpleDateFormat = SimpleDateFormat(dateFormat, Locale.KOREA)
+        return simpleDateFormat.format(time)
+    }
+}
+
+@Composable
+fun EmailMessageCard(emailMessage: EmailMessage) {
+    ListItem(
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)),
+        overlineContent = { },
+        headlineContent = {
+            Row {
+                Text(
+                    emailMessage.sender,
+                    style = LocalTextStyle.current.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                    )
+                )
+            Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    emailMessage.getTime(),
+                    style = LocalTextStyle.current.copy(
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 12.sp,
+                    )
+                )
+            }
+        },
+        supportingContent = {
+            Text(
+                emailMessage.message,
+                style = LocalTextStyle.current.copy(
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 16.sp,
+                )
+            )
+        },
+        leadingContent = {
+            Icon(
+                Icons.Filled.Person,
+                contentDescription = "person icon",
+                Modifier
+                    .clip(CircleShape)
+                    .background(Color.Gray.copy(0.6f))
+                    .padding(10.dp)
+            )
+        },
+        trailingContent = { }
+    )
+}
+
+@Composable
+fun DismissBackground(dismissState: SwipeToDismissBoxState) {
+    val color = when (dismissState.dismissDirection) {
+        SwipeToDismissBoxValue.StartToEnd -> Color(0xFFFF1744)// >>>
+        SwipeToDismissBoxValue.EndToStart -> Color(0xFF1DE9B6)// <<<
+        SwipeToDismissBoxValue.Settled -> Color.Transparent
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color, shape = RoundedCornerShape(8.dp))
+            .padding(20.dp)
+        ,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Icon(
+            Icons.Default.Delete,
+            contentDescription = "delete"
+        )
+        Spacer(modifier = Modifier)
+        Icon(
+            Icons.Default.Done,
+            contentDescription = "Archive"
+        )
+    }
+}
+
+@Composable
+fun EmailItem(
+    emailMessage: EmailMessage,
+    modifier: Modifier = Modifier,
+    onRemove: (EmailMessage) -> Unit
+) {
+//    val context = LocalContext.current
+    val currentItem by rememberUpdatedState(emailMessage)
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = {
+            when(it) {
+                // swipe action
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    onRemove(currentItem)
+//                    Toast.makeText(context, "Item deleted", Toast.LENGTH_SHORT).show()
+                }
+                SwipeToDismissBoxValue.EndToStart -> {
+                    onRemove(currentItem)
+//                    Toast.makeText(context, "Item archived", Toast.LENGTH_SHORT).show()
+                }
+                SwipeToDismissBoxValue.Settled -> return@rememberSwipeToDismissBoxState false
+            }
+            return@rememberSwipeToDismissBoxState true
+        },
+        // positional threshold of 25%
+        positionalThreshold = { it * .25f }
+    )
+    
+    SwipeToDismissBox(// swipe control view
+        state = dismissState,
+        modifier = modifier.padding(5.dp),
+        backgroundContent = { DismissBackground(dismissState) },
+        content = { EmailMessageCard(emailMessage) }
+    )
 }
