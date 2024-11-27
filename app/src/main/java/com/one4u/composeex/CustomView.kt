@@ -7,6 +7,7 @@ import android.graphics.BlurMaskFilter
 import android.graphics.BlurMaskFilter.Blur
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
+import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.animation.AnimatedVisibility
@@ -34,7 +35,9 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.DragInteraction
@@ -61,7 +64,11 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.triStateToggleable
@@ -71,6 +78,7 @@ import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.CheckboxColors
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.FloatingActionButton
 import androidx.compose.material.FractionalThreshold
 import androidx.compose.material.Icon
 import androidx.compose.material.LocalAbsoluteElevation
@@ -79,27 +87,37 @@ import androidx.compose.material.LocalTextStyle
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.RadioButtonColors
 import androidx.compose.material.RadioButtonDefaults
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Surface
 import androidx.compose.material.Snackbar
 import androidx.compose.material.SnackbarData
 import androidx.compose.material.SnackbarDefaults
+import androidx.compose.material.SnackbarDuration
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
+import androidx.compose.material.SnackbarResult
 import androidx.compose.material.SwipeableDefaults
 import androidx.compose.material.SwipeableState
 import androidx.compose.material.SwitchColors
 import androidx.compose.material.SwitchDefaults
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
+import androidx.compose.material.TopAppBar
 import androidx.compose.material.TriStateCheckbox
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.minimumInteractiveComponentSize
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material.swipeable
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -109,6 +127,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateListOf
@@ -117,11 +136,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -130,7 +152,10 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.toRect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PaintingStyle
@@ -147,9 +172,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.layout.LookaheadScope
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -162,7 +189,10 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -171,6 +201,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -179,6 +210,16 @@ import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.toPersistentList
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import me.onebone.toolbar.CollapsingToolbarScaffold
+import me.onebone.toolbar.ScrollStrategy
+import me.onebone.toolbar.rememberCollapsingToolbarScaffoldState
+import kotlin.math.absoluteValue
 
 /*********************************************
  * Circle CheckBox
@@ -529,7 +570,7 @@ fun RadioButton2(
 ) {
     val dotRadius = animateDpAsState(
         targetValue = if (selected) RadioButtonDotSize / 2 else 0.dp,
-        animationSpec = tween(durationMillis = RadioAnimationDuration)
+        animationSpec = tween(durationMillis = RadioAnimationDuration), label = ""
     )
     val radioColor = colors.radioColor(enabled, selected)
     val selectableModifier =
@@ -670,11 +711,11 @@ fun InnerThumbSwitch(
 
 @Composable
 @ExperimentalMaterialApi
-internal fun <T : Any> rememberSwipeableStateFor(
-    value: T,
-    onValueChange: (T) -> Unit,
+internal fun <Boolean : Any> rememberSwipeableStateFor(
+    value: Boolean,
+    onValueChange: (Boolean) -> Unit,
     animationSpec: AnimationSpec<Float> = SwipeableDefaults.AnimationSpec
-): SwipeableState<T> {
+): SwipeableState<Boolean> {
     val swipeableState = remember {
         SwipeableState(
             initialValue = value,
@@ -1536,17 +1577,6 @@ fun NeuMorphismButton(
 }
 
 /**
- * Collapsing TopBar(NavigationBar)
- * */
-@Composable
-private fun CollapsingTopBar(
-
-) {
-
-}
-
-
-/**
  * Animate Bottom TabBar
  * */
 @Composable
@@ -1844,478 +1874,9 @@ private fun SnackbarCountdown(
     }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Preview
-@Composable
-private fun UiPreview() {
-    // 1.
-//    var checkState by remember{ mutableStateOf(false) }
-//    CircleCheckBox(
-//        modifier = Modifier,
-//        checked = checkState,
-//        onCheckedChange = {
-//            checkState = it
-//        },
-//        colors = CheckboxDefaults2.colors(
-//            checkedColor = colorResource(R.color.bl_100),
-//            uncheckedColor = colorResource(R.color.cg_30),
-//            checkmarkColor = colorResource(R.color.wt_100),
-//            uncheckedCheckmarkColor = colorResource(R.color.wt_100)
-//        )
-//    )
-
-
-    // 2.
-//    var checkState by remember{ mutableStateOf(false) }
-//    RadioButton2(
-//        modifier = Modifier
-//            .padding(5.dp)
-//            .size(18.dp),
-//        selected = checkState,
-//        onClick = {
-//            checkState = !checkState
-//        },
-//        colors = RadioButtonDefaults.colors(
-//            selectedColor = colorResource(id = R.color.bl_100),
-//            unselectedColor = colorResource(id = R.color.cg_50)
-//        )
-//    )
-
-
-    // 3.
-//    var checkState by remember{ mutableStateOf(false) }
-//    InnerThumbSwitch(checked = checkState,
-//        onCheckedChange = {
-//            checkState = it
-//        },
-//        colors = SwitchDefaults.colors(
-//            checkedThumbColor = colorResource(R.color.wt_100),
-//            checkedTrackColor = colorResource(R.color.bl_100),
-//            checkedTrackAlpha = 1f,
-//            uncheckedThumbColor = colorResource(R.color.wt_100),
-//            uncheckedTrackColor = colorResource(R.color.cg_40),
-//            uncheckedTrackAlpha = 1f
-//        )
-//    )
-
-
-    // 4.
-//    val infiniteTransition = rememberInfiniteTransition(label = "")
-//    val isMoon by infiniteTransition.animateFloat(
-//        initialValue = 0f,
-//        targetValue = 1f,
-//        animationSpec = infiniteRepeatable(
-//            animation = tween(2000, easing = LinearEasing),
-//            repeatMode = RepeatMode.Reverse
-//        ),
-//        label = ""
-//    )
-//    MoonToSunSwitcher(isMoon = isMoon > 0.5f, sunColor = Color(0xFFFFB136), moonColor = Color(0xFFFFED72))
-
-
-    // 5.
-//    RotatePan(
-//        fanColor = Color(0XFF000000),
-//        pinColor = Color(0XFF000000)
-//    )
-
-    // 6.
-//    Gauge(
-//        pinColor = Color(0xFF333333),
-//        markColor = Color(0xFF000000),
-//        backColor = Color(0xFFFFFFFF),
-//        markLevel = MarkLevel.High,
-//        minDegree = 0f,
-//        maxDegree = 120f,
-//        degree = 1880f,
-//        fontSize = 8.sp,
-//        fontColor = Color(0xFF333333),
-//        modifier = Modifier)
-
-    // 7.
-//    RingProgress(
-//        modifier = Modifier.size(100.dp),
-//        barWidth = 0.3f,
-//        progressColor = Color(0xFF000000),
-//        degree = 12f,
-//        maxDegree = 120f,
-//        fontSize = 9.sp,
-//        fontColor = Color(0xFF000000)
-//    )
-
-    // 8. Modifier - convexBorder
-//    var text by remember { mutableStateOf("") }
-//    BasicTextField(
-//        value = text,
-//        onValueChange = {
-//            text = it
-//        },
-//        singleLine = true,
-//        keyboardOptions = KeyboardOptions(
-//            capitalization = KeyboardCapitalization.Sentences,
-//            imeAction = ImeAction.Search
-//        ),
-//        textStyle = LocalTextStyle.current.copy(
-//            fontSize = 16.sp,
-//            fontWeight = FontWeight.Medium
-//        ),
-//        decorationBox = { innerTextField ->
-//            Row(
-//                modifier = Modifier
-//                    .size(300.dp, 60.dp)
-//                    .background(Color(0XFFAAAAAA), CircleShape)
-//                    .convexBorder(
-//                        color = Color(0XFFCCCCDD),
-//                        shape = CircleShape,
-//                        convexStyle = ConvexStyle(
-////                            shadowColor = Color(0xFFDD0000).copy(0.7f)
-//                        )
-//                    )
-//                    .padding(horizontal = 20.dp),
-//                verticalAlignment = Alignment.CenterVertically,
-//                horizontalArrangement = Arrangement.spacedBy(8.dp)
-//            ) {
-//                Icon(
-//                    imageVector = Icons.Rounded.Search,
-//                    contentDescription = null
-//                )
-//                Box {
-//                    if (text.isEmpty()) {
-//                        Text(
-//                            text = "Search...",
-//                            style = LocalTextStyle.current.copy(Color(0xFF242424))
-//                        )
-//                    }
-//                    innerTextField()
-//                }
-//            }
-//        }
-//    )
-
-    // 9.
-//    Column(
-//        modifier = Modifier
-//            .size(280.dp, 400.dp)
-//            .background(Color(0xFFAAAAAA))
-//            .padding(40.dp)
-//    ) {
-//        Row {
-//            NeuMorphismButton(
-//                modifier = Modifier
-//                    .size(50.dp, 50.dp),
-//                cornerRadius = 10.dp,
-//                backColor = Color(0xFFAAAAAA),
-//                text= "Btn"
-//            ) {
-//
-//            }
-//
-//            Spacer(modifier = Modifier.width(25.dp))
-//
-//            NeuMorphismButton(
-//                modifier = Modifier
-//                    .size(50.dp, 50.dp),
-//                cornerRadius = 10.dp,
-//                backColor = Color(0xFFAAAAAA),
-//                text= "Btn"
-//            ) {
-//
-//            }
-//
-//            Spacer(modifier = Modifier.width(25.dp))
-//
-//            NeuMorphismButton(
-//                modifier = Modifier
-//                    .size(50.dp, 50.dp),
-//                cornerRadius = 10.dp,
-//                backColor = Color(0xFFAAAAAA),
-//                text= "Btn"
-//            ) {
-//
-//            }
-//        }
-//
-//        Spacer(modifier = Modifier.height(30.dp))
-//
-//        NeuMorphismButton(
-//            modifier = Modifier
-//                .size(200.dp, 70.dp),
-//            cornerRadius = 20.dp,
-//            backColor = Color(0xFFAAAAAA),
-//            text= "Button1"
-//        ) {
-//
-//        }
-//        Spacer(modifier = Modifier.height(30.dp))
-//
-//        Row {
-//            NeuMorphismButton(
-//                modifier = Modifier
-//                    .size(90.dp, 45.dp),
-//                cornerRadius = 1.dp,
-//                backColor = Color(0xFFAAAAAA),
-//                text= "Button2"
-//            ) {
-//
-//            }
-//
-//            Spacer(modifier = Modifier.width(20.dp))
-//
-//            NeuMorphismButton(
-//                modifier = Modifier
-//                    .size(90.dp, 45.dp),
-//                cornerRadius = 1.dp,
-//                backColor = Color(0xFFAAAAAA),
-//                text= "Button3"
-//            ) {
-//
-//            }
-//        }
-//
-//        Spacer(modifier = Modifier.height(30.dp))
-//
-//        Row {
-//            NeuMorphismButton(
-//                modifier = Modifier
-//                    .size(50.dp, 50.dp),
-//                cornerRadius = 25.dp,
-//                backColor = Color(0xFFAAAAAA),
-//                text= "Btn"
-//            ) {
-//
-//            }
-//
-//            Spacer(modifier = Modifier.width(25.dp))
-//
-//            NeuMorphismButton(
-//                modifier = Modifier
-//                    .size(50.dp, 50.dp),
-//                cornerRadius = 25.dp,
-//                backColor = Color(0xFFAAAAAA),
-//                text= "Btn"
-//            ) {
-//
-//            }
-//
-//            Spacer(modifier = Modifier.width(25.dp))
-//
-//            NeuMorphismButton(
-//                modifier = Modifier
-//                    .size(50.dp, 50.dp),
-//                cornerRadius = 25.dp,
-//                backColor = Color(0xFFAAAAAA),
-//                text= "Btn"
-//            ) {
-//
-//            }
-//        }
-//    }
-
-    // 10. Collapsing TopBar
-    CollapsingTopBar()
-
-    // 11. Animate in Bottom TapBar
-//    Box(modifier = Modifier
-//        .fillMaxWidth()
-//        .height(200.dp), contentAlignment = Alignment.BottomCenter) {
-//        BottomTabBar(
-//            backColor = Color.White,
-//            height = 92.dp,
-//            cornerRadius = 35.dp,
-//            menus = arrayListOf(
-//                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_cam), title = "Camera"),
-//                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_home), title = "Home"),
-//                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_search), title = "Search")
-//            )
-//        ) { selectedIdx ->
-//            when (selectedIdx) {
-//                0 -> {
-//                    // camera
-//                }
-//
-//                1 -> {
-//                    // main
-//                }
-//
-//                2 -> {
-//                    // search
-//                }
-//            }
-//        }
-//    }
-
-    // 12. Snackbar Countdown
-//    Box(Modifier.fillMaxSize()) {
-//        val context = LocalContext.current
-//        val scope = rememberCoroutineScope()
-//        val snackbarHostState = remember { SnackbarHostState() }
-//
-//        Button(
-//            modifier = Modifier.align(Alignment.Center),
-//            onClick = {
-//                // show snackbar and do something(process...)
-//                scope.launch {
-//                    snackbarHostState.currentSnackbarData?.performAction()
-//
-//                    val result = snackbarHostState.showSnackbar(
-//                        message = "Something will be done soon.",
-//                        actionLabel = "Undo",
-//                        duration = SnackbarDuration.Indefinite// countdown
-//                    )
-//
-//                    when(result) {
-//                        SnackbarResult.Dismissed -> {
-//                            // do something now.
-//                            Toast.makeText(context, "done", Toast.LENGTH_SHORT).show()
-//                        }
-//                        SnackbarResult.ActionPerformed -> {
-//                            // canceled
-//                            Toast.makeText(context, "canceled", Toast.LENGTH_SHORT).show()
-//                        }
-//                    }
-//                }
-//            }
-//        ) {
-//            Text("Do Something")
-//        }
-//
-//        SnackbarHost(
-//            hostState = snackbarHostState,
-//            modifier = Modifier.align(Alignment.BottomCenter)
-//        ) { data ->
-//            CountdownSnackbar(
-//                snackbarData = data,
-//                durationInSeconds = 5
-//            )
-//        }
-//    }
-
-
-    // 13. responsive Dashboard layout
-//    val mode = remember {
-//        mutableStateOf("Portrait")
-//    }
-//    val scope = rememberCoroutineScope()
-//    val offsetX = remember { Animatable(300f) }
-//    val offsetY = remember { Animatable(0f) }
-//
-//    val tiles = remember {
-//        movableContentOf {//  state tracking
-//            Tile()
-//            Spacer(Modifier.size(10.dp))
-//            Tile(modifier = Modifier.offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) })
-//        }
-//    }
-//
-//    Column(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .background(color = Color.White)
-//            .padding(20.dp)
-//    ) {
-//        // View 에 Animate Offset 처리, View 상태 유지 & View 이동 시 Animation 효과 제어
-//        Box {
-//            tiles()
-//        }
-//
-//        // Grid 컬럼 제어. 각 View 가 새로 그려지는 이슈 & col size 계산 필..
-////        AnimatedContent(targetState = if (mode.value == "Landscape") 2 else 1, label = "") { colCnt ->
-////            LazyVerticalGrid(
-////                modifier = Modifier.width(208.dp / colCnt).wrapContentHeight(),
-////                columns = GridCells.Adaptive(100.dp),
-////                verticalArrangement = Arrangement.spacedBy(8.dp),
-////                horizontalArrangement = Arrangement.spacedBy(8.dp)
-////            ) {
-////                items(2) {
-////                    Tile()
-////                }
-////            }
-////        }
-//
-//        // 컨탠츠 애니메이션 처리. 각 View 가 새로 그려지는 이슈..
-////        AnimatedContent(targetState = mode.value == "Landscape", label = "") { targetState ->
-////            if (targetState) {
-////                Row {
-////                    tiles()
-////                }
-////            } else {
-////                Column {
-////                    tiles()
-////                }
-////            }
-////        }
-//
-//        // 화면 전환 시 깜빡거리는 듯 즉각 변화. View 상태 유지
-////        if (mode.value == "Landscape") {
-////            Row {
-////                tiles()
-////            }
-////        } else {
-////            Column {
-////                tiles()
-////            }
-////        }
-//
-//        Spacer(Modifier.height(20.dp))
-//        AnimatedContent(
-//            modifier = Modifier.offset { IntOffset(0, offsetY.value.roundToInt()) }
-//            ,targetState = mode.value, label = "") { targetStr ->
-//            Text(targetStr)
-//        }
-//
-//        Spacer(Modifier.height(20.dp))
-//        Button(modifier = Modifier
-//            .offset { IntOffset(0, offsetY.value.roundToInt()) }
-//            .size(100.dp, 60.dp), onClick = {
-//            scope.launch {
-//                    if (mode.value == "Portrait") {
-//                        mode.value = "Landscape"
-//                        launch{
-//                            offsetX.animateTo(0f, animationSpec = tween(400, easing = FastOutSlowInEasing))
-//                        }
-//                        launch{
-//                            offsetY.animateTo(300f, animationSpec = tween(800))
-//                        }
-//                    } else {
-//                        mode.value = "Portrait"
-//                        launch {
-//                            offsetX.animateTo(300f, animationSpec = tween(800))
-//                        }
-//                        launch {
-//                            offsetY.animateTo(0f, animationSpec = tween(400, easing = FastOutSlowInEasing))
-//                        }
-//                    }
-//                }
-//            }
-//        ) {
-//            Text("click")
-//        }
-//    }
-
-    // 14. Swipe to dismiss
-    val emailViewModel = EmailViewModel()
-    val messages by emailViewModel.messagesState.collectAsState()
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 12.dp),
-    ) {
-        itemsIndexed(
-            items = messages,
-            // Provide a unique key based on the email content
-            key = { _, item -> item.hashCode() }
-        ) { _, emailContent ->
-//            EmailItem(emailContent, onRemove = emailViewModel::removeItem)
-            EmailItem(emailContent) { item ->
-                emailViewModel.removeItem(item)
-            }
-        }
-    }
-
-}
-
-// 고유 event 를 handling 하는 View
+/**
+ * 고유 event 를 handling 하는 SampleView - Tile
+ * */
 @Composable
 fun Tile(modifier: Modifier = Modifier) {
     val repeatingAnimation = rememberInfiniteTransition(label = "")
@@ -2334,7 +1895,9 @@ fun Tile(modifier: Modifier = Modifier) {
     }
 }
 
-// swipe item 처리를 위한 샘플 message Item
+/**
+ * Swipe Example with email list
+ * */
 data class EmailMessage(
     val sender: String,
     val message: String,
@@ -2346,7 +1909,7 @@ data class EmailMessage(
         return simpleDateFormat.format(time)
     }
 }
-
+// EmailMessageCard
 @Composable
 fun EmailMessageCard(emailMessage: EmailMessage) {
     ListItem(
@@ -2361,7 +1924,7 @@ fun EmailMessageCard(emailMessage: EmailMessage) {
                         fontSize = 18.sp,
                     )
                 )
-            Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f))
                 Text(
                     emailMessage.getTime(),
                     style = LocalTextStyle.current.copy(
@@ -2393,7 +1956,7 @@ fun EmailMessageCard(emailMessage: EmailMessage) {
         trailingContent = { }
     )
 }
-
+// DismissBackground
 @Composable
 fun DismissBackground(dismissState: SwipeToDismissBoxState) {
     val color = when (dismissState.dismissDirection) {
@@ -2422,7 +1985,7 @@ fun DismissBackground(dismissState: SwipeToDismissBoxState) {
         )
     }
 }
-
+// EmailItem
 @Composable
 fun EmailItem(
     emailMessage: EmailMessage,
@@ -2450,11 +2013,878 @@ fun EmailItem(
         // positional threshold of 25%
         positionalThreshold = { it * .25f }
     )
-    
+
     SwipeToDismissBox(// swipe control view
         state = dismissState,
         modifier = modifier.padding(5.dp),
         backgroundContent = { DismissBackground(dismissState) },
         content = { EmailMessageCard(emailMessage) }
     )
+}
+
+
+/**
+ * PaginatedLazyColumn
+ * */
+@Composable
+fun PaginatedLazyColumn(
+    items: PersistentList<String>,  // Using PersistentList for efficient state management
+    loadMoreItems: () -> Unit,  // Function to load more items
+    listState: LazyListState,   // Track the scroll state of the LazyColumn
+    buffer: Int = 2,            // Buffer to load more items when we get near the end
+    isLoading: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val totalItemCount = listState.layoutInfo.totalItemsCount
+            val lastVisibleItemIndex: Int = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            (lastVisibleItemIndex >= (totalItemCount - buffer)) && !isLoading
+        }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { shouldLoadMore.value }
+//            .distinctUntilChanged()
+            .filter { it }  // Ensure that we load more items only when needed
+            .collect {
+                loadMoreItems()
+            }
+    }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp)
+        , state = listState
+    ) {
+        // Render each item in the list using a unique key
+        itemsIndexed(items, key = { _, item -> item}) { index, item ->
+            Text(text = item, modifier = Modifier.padding(8.dp))
+        }
+        if (isLoading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(6.dp)
+                    , contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Modifier extensions
+ * */
+private fun Modifier.colorFilter(colorFilter: ColorFilter): Modifier {
+    return this.drawWithCache {
+        val graphicsLayer = obtainGraphicsLayer()
+        graphicsLayer.apply {
+            record {
+                drawContent()
+            }
+            this.colorFilter = colorFilter
+        }
+        onDrawWithContent {
+            drawLayer(graphicsLayer)
+        }
+    }
+}
+private fun Modifier.blendMode(blendMode: BlendMode): Modifier {// background 와의 효과 적용
+    return this.drawWithCache {
+        val graphicsLayer = obtainGraphicsLayer()
+        graphicsLayer.apply {
+            record {
+                drawContent()
+            }
+            this.blendMode = blendMode
+        }
+        onDrawWithContent {
+            drawLayer(graphicsLayer)
+        }
+    }
+}
+
+@Composable
+private fun PagerSampleItem(page: Int) {
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .height(150.dp)
+        .background(
+            brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                colors = listOf(
+                    Color.Black,
+                    Color.Gray,
+                    Color.White,
+                    Color.LightGray,
+                    Color.White,
+                    Color.Gray,
+                    Color.Black
+                )
+            )
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("page : $page", fontSize = 26.sp)
+    }
+}
+
+/**
+ * Parallax Pager
+ * */
+private val backgrounds = listOf(R.drawable.background_1, R.drawable.background_2, R.drawable.background_3, R.drawable.background_4)
+@Composable
+private fun GradientOverlay() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color.Black.copy(alpha = 0.7f), Color.Black.copy(alpha = 0.2f), Color.Transparent),
+                    startY = 0f,
+                    endY = 600f
+                )
+            )
+    )
+}
+
+@Composable
+private fun BackgroundImagePager(state: PagerState) {
+    HorizontalPager(
+        modifier = Modifier.fillMaxSize(),
+        state = state
+    ) { currentPage ->
+
+        Box(Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter) {
+            // background
+            Image(
+                painter = painterResource(id = backgrounds[currentPage]),
+                contentDescription = "",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+            )
+
+            // gradient cover
+            GradientOverlay()
+
+            val currentPageOffset = calculatePageOffset(state, currentPage)
+            val cardTranslationX = lerp(800f, 0f, 1f - currentPageOffset)
+
+            // top Image
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.8f)
+                    .background(color = Color.White, shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                    .border(width = 3.dp, color = Color.White, shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+            ) {
+                Image(
+                    painter = painterResource(id = backgrounds[currentPage]),
+                    contentDescription = "",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                        .graphicsLayer {
+                            translationX = cardTranslationX
+                        }
+                )
+            }
+        }
+    }
+}
+fun calculatePageOffset(state: PagerState, currentPage: Int): Float {
+    return (state.currentPage + state.currentPageOffsetFraction - currentPage).coerceIn(-1f, 1f)
+}
+@Composable
+fun ParallaxImagePager(paddingValues: PaddingValues) {
+    val backgroundPagerState = rememberPagerState(pageCount = { backgrounds.size })
+//    val imgCardPagerState = rememberPagerState(pageCount = { backgrounds.size })
+//
+//    // Derived state to track scrolling status
+//    val scrollingFollowingPair by remember {
+//        derivedStateOf {
+//            when {
+//                backgroundPagerState.isScrollInProgress -> backgroundPagerState to imgCardPagerState
+//                imgCardPagerState.isScrollInProgress -> imgCardPagerState to backgroundPagerState
+//                else -> null
+//            }
+//        }
+//    }
+//
+//    // Synchronizing scrolling of two pagers
+//    LaunchedEffect(scrollingFollowingPair) {
+//        scrollingFollowingPair?.let { (scrollingState, followingState) ->
+//            snapshotFlow { scrollingState.currentPage + scrollingState.currentPageOffsetFraction }
+//                .collect { pagePart ->
+//                    val (page, offset) = java.math.BigDecimal.valueOf(pagePart.toDouble())
+//                        .divideAndRemainder(java.math.BigDecimal.ONE)
+//                        .let { it[0].toInt() to it[1].toFloat() }
+//
+//                    followingState.requestScrollToPage(page, offset)
+//                }
+//        }
+//    }
+
+    // Layout for both pagers
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        BackgroundImagePager(backgroundPagerState)
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Preview
+@Composable
+private fun UiPreview() {
+    // 1.
+/*
+    var checkState by remember{ mutableStateOf(false) }
+    CircleCheckBox(
+        modifier = Modifier,
+        checked = checkState,
+        onCheckedChange = {
+            checkState = it
+        },
+        colors = CheckboxDefaults2.colors(
+            checkedColor = colorResource(R.color.bl_100),
+            uncheckedColor = colorResource(R.color.cg_30),
+            checkmarkColor = colorResource(R.color.wt_100),
+            uncheckedCheckmarkColor = colorResource(R.color.wt_100)
+        )
+    )
+*/
+
+    // 2.
+/*
+    var checkState by remember{ mutableStateOf(false) }
+    RadioButton2(
+        modifier = Modifier
+            .padding(5.dp)
+            .size(18.dp),
+        selected = checkState,
+        onClick = {
+            checkState = !checkState
+        },
+        colors = RadioButtonDefaults.colors(
+            selectedColor = colorResource(id = R.color.bl_100),
+            unselectedColor = colorResource(id = R.color.cg_50)
+        )
+    )
+*/
+
+    // 3.
+/*
+    var checkState by remember{ mutableStateOf(false) }
+    InnerThumbSwitch(checked = checkState,
+        onCheckedChange = {
+            checkState = it
+        },
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = colorResource(R.color.wt_100),
+            checkedTrackColor = colorResource(R.color.bl_100),
+            checkedTrackAlpha = 1f,
+            uncheckedThumbColor = colorResource(R.color.wt_100),
+            uncheckedTrackColor = colorResource(R.color.cg_40),
+            uncheckedTrackAlpha = 1f
+        )
+    )
+*/
+
+    // 4.
+/*
+    val infiniteTransition = rememberInfiniteTransition(label = "")
+    val isMoon by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = ""
+    )
+    MoonToSunSwitcher(isMoon = isMoon > 0.5f, sunColor = Color(0xFFFFB136), moonColor = Color(0xFFFFED72))
+*/
+
+    // 5.
+/*
+    RotatePan(
+        fanColor = Color(0XFF000000),
+        pinColor = Color(0XFF000000)
+    )
+*/
+
+    // 6.
+/*
+    Gauge(
+        pinColor = Color(0xFF333333),
+        markColor = Color(0xFF000000),
+        backColor = Color(0xFFFFFFFF),
+        markLevel = MarkLevel.High,
+        minDegree = 0f,
+        maxDegree = 120f,
+        degree = 1880f,
+        fontSize = 8.sp,
+        fontColor = Color(0xFF333333),
+        modifier = Modifier)
+*/
+
+    // 7.
+/*
+    RingProgress(
+        modifier = Modifier.size(100.dp),
+        barWidth = 0.3f,
+        progressColor = Color(0xFF000000),
+        degree = 12f,
+        maxDegree = 120f,
+        fontSize = 9.sp,
+        fontColor = Color(0xFF000000)
+    )
+*/
+
+    // 8. Modifier - convexBorder
+/*
+    var text by remember { mutableStateOf("") }
+    BasicTextField(
+        value = text,
+        onValueChange = {
+            text = it
+        },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = ImeAction.Search
+        ),
+        textStyle = LocalTextStyle.current.copy(
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium
+        ),
+        decorationBox = { innerTextField ->
+            Row(
+                modifier = Modifier
+                    .size(300.dp, 60.dp)
+                    .background(Color(0XFFAAAAAA), CircleShape)
+                    .convexBorder(
+                        color = Color(0XFFCCCCDD),
+                        shape = CircleShape,
+                        convexStyle = ConvexStyle(
+//                            shadowColor = Color(0xFFDD0000).copy(0.7f)
+                        )
+                    )
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = null
+                )
+                Box {
+                    if (text.isEmpty()) {
+                        Text(
+                            text = "Search...",
+                            style = LocalTextStyle.current.copy(Color(0xFF242424))
+                        )
+                    }
+                    innerTextField()
+                }
+            }
+        }
+    )
+*/
+
+    // 9. NeuMorphismButton example
+/*
+    Column(
+        modifier = Modifier
+            .size(280.dp, 400.dp)
+            .background(Color(0xFFAAAAAA))
+            .padding(40.dp)
+    ) {
+        Row {
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 10.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(25.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 10.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(25.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 10.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        NeuMorphismButton(
+            modifier = Modifier
+                .size(200.dp, 70.dp),
+            cornerRadius = 20.dp,
+            backColor = Color(0xFFAAAAAA),
+            text= "Button1"
+        ) {
+
+        }
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Row {
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(90.dp, 45.dp),
+                cornerRadius = 1.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Button2"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(20.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(90.dp, 45.dp),
+                cornerRadius = 1.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Button3"
+            ) {
+
+            }
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Row {
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 25.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(25.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 25.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+
+            Spacer(modifier = Modifier.width(25.dp))
+
+            NeuMorphismButton(
+                modifier = Modifier
+                    .size(50.dp, 50.dp),
+                cornerRadius = 25.dp,
+                backColor = Color(0xFFAAAAAA),
+                text= "Btn"
+            ) {
+
+            }
+        }
+    }
+*/
+
+    // 10. Collapsing TopBar
+/*
+    Surface(modifier = Modifier.fillMaxSize()) {
+        val state = rememberCollapsingToolbarScaffoldState()
+        CollapsingToolbarScaffold(
+            modifier = Modifier.fillMaxSize(),
+            scrollStrategy = ScrollStrategy.EnterAlwaysCollapsed,
+            state = state,
+            toolbar = {
+                Box(
+                    modifier = Modifier
+                        .background(Color.Gray)
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .pin()
+                )
+
+                val textSize = (18 + (30 - 18) * state.toolbarState.progress).sp
+                Text(
+                    text = "Title",
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .road(
+                            whenCollapsed = Alignment.CenterStart,
+                            whenExpanded = Alignment.BottomEnd
+                        )
+//                        .alpha(state.toolbarState.progress)
+                    ,
+                    color = Color.Black,
+                    fontSize = textSize
+                )
+
+                Image(
+                    modifier = Modifier
+                        .pin()
+                        .padding(16.dp)
+                        .alpha(state.toolbarState.progress),
+                    painter = painterResource(id = R.drawable.icn_main_cam),
+                    contentDescription = ""
+                )
+            }
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = (40 - 40 * state.toolbarState.progress).dp)
+            ) {
+                items(20) {
+                    Text(
+                        "#items $it",
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .background(Color.White)
+                            .padding(5.dp)
+                    )
+                }
+            }
+        }
+
+        Box(modifier =
+            Modifier.alpha(if (state.toolbarState.progress == 0f) 1f else 0f)
+        ) {
+            Text(
+                text = "Title",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .background(Color.Gray)
+                    .padding(10.dp),
+                color = Color.Black,
+                fontSize = 18.sp
+            )
+        }
+    }
+*/
+
+    // 11. Animate in Bottom TapBar
+/*
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .height(200.dp), contentAlignment = Alignment.BottomCenter) {
+        BottomTabBar(
+            backColor = Color.White,
+            height = 92.dp,
+            cornerRadius = 35.dp,
+            menus = arrayListOf(
+                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_cam), title = "Camera"),
+                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_home), title = "Home"),
+                BottomTabBarItem(painter = painterResource(id = R.drawable.icn_main_search), title = "Search")
+            )
+        ) { selectedIdx ->
+            when (selectedIdx) {
+                0 -> {
+                    // camera
+                }
+
+                1 -> {
+                    // main
+                }
+
+                2 -> {
+                    // search
+                }
+            }
+        }
+    }
+*/
+
+    // 12. Snackbar Countdown
+/*
+    Box(Modifier.fillMaxSize()) {
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val snackbarHostState = remember { SnackbarHostState() }
+
+        Button(
+            modifier = Modifier.align(Alignment.Center),
+            onClick = {
+                // show snackbar and do something(process...)
+                scope.launch {
+                    snackbarHostState.currentSnackbarData?.performAction()
+
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Something will be done soon.",
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Indefinite// countdown
+                    )
+
+                    when(result) {
+                        SnackbarResult.Dismissed -> {
+                            // do something now.
+//                            Toast.makeText(context, "done", Toast.LENGTH_SHORT).show()
+                        }
+                        SnackbarResult.ActionPerformed -> {
+                            // canceled
+//                            Toast.makeText(context, "canceled", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        ) {
+            Text("Do Something")
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) { data ->
+            CountdownSnackbar(
+                snackbarData = data,
+                durationInSeconds = 5
+            )
+        }
+    }
+*/
+
+    // 13. responsive Dashboard layout
+/*
+    val mode = remember {
+        mutableStateOf("Portrait")
+    }
+    val scope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(300f) }
+    val offsetY = remember { Animatable(0f) }
+
+    val tiles = remember {
+        movableContentOf {//  state tracking
+            Tile()
+            Spacer(Modifier.size(10.dp))
+            Tile(modifier = Modifier.offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) })
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color.White)
+            .padding(20.dp)
+    ) {
+            // View 에 Animate Offset 처리, View 상태 유지 & View 이동 시 Animation 효과 제어
+            Box {
+                tiles()
+            }
+
+            // Grid 컬럼 제어. 각 View 가 새로 그려지는 이슈 & col size 계산 필..
+    //        AnimatedContent(targetState = if (mode.value == "Landscape") 2 else 1, label = "") { colCnt ->
+    //            LazyVerticalGrid(
+    //                modifier = Modifier.width(208.dp / colCnt).wrapContentHeight(),
+    //                columns = GridCells.Adaptive(100.dp),
+    //                verticalArrangement = Arrangement.spacedBy(8.dp),
+    //                horizontalArrangement = Arrangement.spacedBy(8.dp)
+    //            ) {
+    //                items(2) {
+    //                    Tile()
+    //                }
+    //            }
+    //        }
+
+            // 컨탠츠 애니메이션 처리. 각 View 가 새로 그려지는 이슈..
+    //        AnimatedContent(targetState = mode.value == "Landscape", label = "") { targetState ->
+    //            if (targetState) {
+    //                Row {
+    //                    tiles()
+    //                }
+    //            } else {
+    //                Column {
+    //                    tiles()
+    //                }
+    //            }
+    //        }
+
+            // 화면 전환 시 깜빡거리는 듯 즉각 변화. View 상태 유지
+    //        if (mode.value == "Landscape") {
+    //            Row {
+    //                tiles()
+    //            }
+    //        } else {
+    //            Column {
+    //                tiles()
+    //            }
+    //        }
+
+        Spacer(Modifier.height(20.dp))
+        AnimatedContent(
+            modifier = Modifier.offset { IntOffset(0, offsetY.value.roundToInt()) }
+            ,targetState = mode.value, label = "") { targetStr ->
+            Text(targetStr)
+        }
+
+        Spacer(Modifier.height(20.dp))
+        Button(modifier = Modifier
+            .offset { IntOffset(0, offsetY.value.roundToInt()) }
+            .size(100.dp, 60.dp), onClick = {
+            scope.launch {
+                    if (mode.value == "Portrait") {
+                        mode.value = "Landscape"
+                        launch{
+                            offsetX.animateTo(0f, animationSpec = tween(400, easing = FastOutSlowInEasing))
+                        }
+                        launch{
+                            offsetY.animateTo(300f, animationSpec = tween(800))
+                        }
+                    } else {
+                        mode.value = "Portrait"
+                        launch {
+                            offsetX.animateTo(300f, animationSpec = tween(800))
+                        }
+                        launch {
+                            offsetY.animateTo(0f, animationSpec = tween(400, easing = FastOutSlowInEasing))
+                        }
+                    }
+                }
+            }
+        ) {
+            Text("click")
+        }
+    }
+*/
+
+    // 14. Swipe to dismiss
+/*
+    val emailViewModel = EmailViewModel()
+    val messages by emailViewModel.messagesState.collectAsState()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize(),
+        contentPadding = PaddingValues(vertical = 12.dp),
+    ) {
+        itemsIndexed(
+            items = messages,
+            // Provide a unique key based on the email content
+            key = { _, item -> item.hashCode() }
+        ) { _, emailContent ->
+            // EmailItem(emailContent, onRemove = emailViewModel::removeItem)
+            EmailItem(emailContent) { item ->
+                emailViewModel.removeItem(item)
+            }
+        }
+    }
+ */
+
+    // 15. Paginated Lazy Column
+/*
+    var items by remember { mutableStateOf( List(20){ "Item #$it" } ) }// init items list
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(false) }
+    fun loadMoreItems() {
+        scope.launch {
+            isLoading = true
+            delay(1000)
+
+            // load next items list
+            val newItems = List(20){ "Item #${items.size + it}" }
+
+            items = items + newItems
+            isLoading = false
+        }
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Paginated LazyColumn") })
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = {
+                scope.launch {
+                    listState.animateScrollToItem(0)
+                }
+            }) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "")
+            }
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier
+            .padding(paddingValues)
+        ) {
+            PaginatedLazyColumn(
+                items = items.toPersistentList(),    //
+                // loadMoreItems = { loadMoreItems() },
+                loadMoreItems = ::loadMoreItems,
+                listState = listState,
+                isLoading = isLoading
+            )
+        }
+    }
+ */
+
+    // 16. Graphics layers
+/*
+    Box {
+        val pagerState = rememberPagerState (
+            initialPage = 0,
+            pageCount = { 15 }
+        )
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .colorFilter(ColorFilter.colorMatrix(
+                    ColorMatrix().apply {
+                        setToSaturation(0f)
+                    })
+                )
+        ) { idx ->
+            PagerSampleItem(
+                page = idx
+            )
+        }
+        Text(
+            text = "breaking news",
+            fontSize = 22.sp,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxSize()
+                .blendMode(BlendMode.Difference)
+        )
+    }
+*/
+
+    // 17. Parallax Pager
+    ParallaxImagePager(PaddingValues(5.dp))
 }
